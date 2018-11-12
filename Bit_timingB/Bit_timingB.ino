@@ -13,7 +13,7 @@
 #define TSEG2 7
 #define SJW 1
 
-#define TQ  1000000 // in microseconds
+#define TQ  10000 // in microseconds
 
 #define BITS_QUANTITY 3
 //#define TEST
@@ -43,6 +43,7 @@ bool idle;
 
 int8_t hard_reset = 0;
 int8_t soft_reset = 0;
+int8_t toggle = 0;
 
 int8_t count = 0;
 int tq_counter = -1; //time quanta counter
@@ -59,7 +60,9 @@ int8_t bus_value[BITS_QUANTITY][16] = {
 void edgeDetector() {
   if (previous_rx == HIGH && rx == LOW) {
     negedge_rx = HIGH;
-    Serial.println("edge detected");
+    #ifdef TEST
+      Serial.println("edge detected");
+    #endif
   }
   else
     negedge_rx = LOW;
@@ -74,11 +77,13 @@ void callback()
     tq_counter = 0;
   }
 #endif
-
-  digitalWrite(pin_time_quanta, digitalRead(pin_time_quanta) ^ 1);
+  toggle = digitalRead(pin_time_quanta) ^ 1;
+  digitalWrite(pin_time_quanta, toggle);
   waitingTimeQuanta = false;
-  Serial.print("TQ: ");
-  Serial.println(tq_counter);
+  #ifdef TEST
+    Serial.print("TQ: ");
+    Serial.println(tq_counter);
+  #endif
 }
 void setup()
 {
@@ -99,8 +104,18 @@ void setup()
   next_state = START_STATE;
 }
 
-void printStateInfo (bool debugFlag, bool pinStatus) {
+void signalsSerial(){
+  Serial.print((toggle+1));
+  Serial.print(' ');
+  Serial.print((hard_reset+2));
+  Serial.print(' ');
+  Serial.print((soft_reset+3));
+  Serial.print(' ');
+  Serial.println((state+4));
+}
 
+void printStateInfo (bool debugFlag, bool pinStatus) {
+  
   if (debugFlag) {
     switch (state) {
       case START_STATE:
@@ -155,6 +170,7 @@ void printStateInfo (bool debugFlag, bool pinStatus) {
     Serial.print("\n\n");
 
   }
+
 }
 
 bool check_idle() {
@@ -215,12 +231,15 @@ void setIOPins() {
 void loop() {
   bool debugFlag = true;
   bool pinStatusFlag = true;
+  
   if (!waitingTimeQuanta) {
     setIOPins();
 
     //hard reset logic
     if (check_idle() && negedge_rx) {
-      Serial.println("hard reset trigger");
+      #ifdef TEST
+        Serial.println("hard reset trigger");
+      #endif
       hard_reset = 0x1;
     }
     else
@@ -316,7 +335,11 @@ void loop() {
         break;
     }
     waitingTimeQuanta = true;
-    printStateInfo(debugFlag, pinStatusFlag);
+    #ifdef TEST
+      printStateInfo(debugFlag, pinStatusFlag);
+    #else
+      signalsSerial();
+    #endif
     state = next_state;
     previous_rx = rx;
 
