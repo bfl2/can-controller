@@ -1,5 +1,4 @@
-a#include "TimerOne.h"
-
+#include "TimerOne.h"
 
 #define pin_time_quanta 13
 #define pin_RX 11 //Input
@@ -10,12 +9,14 @@ a#include "TimerOne.h"
 #define pin_soft_reset 6
 #define pin_hard_reset 5
 
-
 #define TSEG1 8
 #define TSEG2 7
 #define SJW 1
 
 #define TQ  1000000 // in microseconds
+
+#define BITS_QUANTITY 3
+#define TEST
 
 
 enum states {
@@ -35,16 +36,24 @@ int8_t write_point;
 int8_t e;
 bool waitingTimeQuanta = true;
 
-bool previous_rx; //for edge detection
-bool rx;
+int8_t previous_rx = HIGH; //for edge detection
+int8_t rx;
 bool negedge_rx = LOW;
 bool idle;
 
 int8_t hard_reset = 0;
 int8_t soft_reset = 0;
 
-
 int8_t count = 0;
+
+#ifdef TEST
+  int tq_counter=-1; //time quanta counter
+  int8_t bus_value[BITS_QUANTITY][16] = {
+    {0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
+    {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+    {0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1}
+  };
+#endif
 
 
 void edgeDetector() {
@@ -52,13 +61,25 @@ void edgeDetector() {
     negedge_rx = HIGH;
     Serial.println("edge detected");
   }
+  else
+    negedge_rx = LOW;
 }
 
 void callback()
 {
+  // SYNTETHIC BUS READING
+  #ifdef TEST
+  tq_counter += 1;
+  if((tq_counter / 16) > (BITS_QUANTITY - 1)){
+    tq_counter = 0;
+  }
+  #endif
+
+  
   digitalWrite(pin_time_quanta, digitalRead(pin_time_quanta) ^ 1);
   waitingTimeQuanta = false;
-  Serial.println("TQ");
+  Serial.print("TQ: ");
+  Serial.println(tq_counter);
 }
 void setup()
 {
@@ -72,7 +93,6 @@ void setup()
   //INPUT
   pinMode(pin_RX, INPUT);
   pinMode(pin_idle, INPUT);
-
 
   Timer1.initialize(TQ);
   Timer1.attachInterrupt(callback);
@@ -96,8 +116,8 @@ void printStateInfo (bool debugFlag, bool pinStatus) {
 
       case COMPENSATE1_STATE:
         Serial.println("COMPENSATE1_STATE ");
-        Serial.print("e ");
-        Serial.println(e, DEC);
+        Serial.print("e: ");
+        Serial.println(e);
 
         break;
 
@@ -109,35 +129,61 @@ void printStateInfo (bool debugFlag, bool pinStatus) {
 
       case COMPENSATE2_STATE:
         Serial.println("COMPENSATE2_STATE ");
+        Serial.print("e: ");
+        Serial.println(e);
         break;
     }
     if (write_point) {
-      Serial.println("write point = 1");
+      Serial.println(" write point = 1");
     }
     if (sample_point)
-      Serial.println("sample_point = 1");
+      Serial.println(" sample_point = 1");
+    if(soft_reset)
+      Serial.println(" soft_reset = 1");
+    if(hard_reset)
+      Serial.println(" hard_reset = 1");
 
   }
 
   if (pinStatus) {
+    Serial.print(" Previous RX: ");
+    Serial.println(previous_rx);
     Serial.print(" RX: ");
-    Serial.println(digitalRead(rx));
+    Serial.println(rx);
     Serial.print(" idle: ");
-    Serial.println( digitalRead(pin_idle));
+    Serial.println(idle);
+
+    Serial.print("\n\n");
 
   }
 }
 
+bool check_idle(){
+  //bool idle_value =  digitalRead(pin_idle);
+  bool idle_value = false;
+  return idle_value;
+}
+
 void setIOPins() {
   //INPUTS
-  rx = digitalRead(pin_RX);
-  idle = digitalRead(pin_idle);
+  #ifdef TEST
+    int i = tq_counter / 16;
+    int j = tq_counter % 16;
+    rx = bus_value[i][j];
+  #else
+    rx = digitalRead(pin_RX);
+  #endif
+
+  edgeDetector();
+  idle = check_idle();
 
   //OUTPUTS
 
   digitalWrite(pin_hard_reset, hard_reset);
   digitalWrite(pin_soft_reset, soft_reset);
 
+
+  //displaying states
   switch (state) {
     case START_STATE: //00
       digitalWrite(pin_state_1, LOW);
@@ -150,8 +196,6 @@ void setIOPins() {
       break;
 
     case COMPENSATE1_STATE:
-
-
       break;
 
     case COUNT_TSEG2_STATE://10
@@ -160,7 +204,6 @@ void setIOPins() {
       break;
 
     case COMPENSATE2_STATE:
-
       break;
   }
 
@@ -172,6 +215,22 @@ void loop() {
   bool pinStatusFlag = true;
   if (!waitingTimeQuanta) {
     setIOPins();
+
+    //hard reset logic
+    if(check_idle() && negedge_rx){
+      Serial.println("hard reset trigger");
+      hard_reset = 0x1;
+    }
+    else
+      hard_reset = 0x0;
+    //soft reset logic
+    if(!check_idle() && negedge_rx){
+      Serial.println("soft reset trigger");
+      soft_reset = 0x1;
+    }
+    else
+      soft_reset = 0x0;
+    
     switch (state) {
 
       case START_STATE:
