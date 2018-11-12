@@ -16,7 +16,7 @@
 #define TQ  1000000 // in microseconds
 
 #define BITS_QUANTITY 3
-#define TEST
+//#define TEST
 
 
 enum states {
@@ -45,14 +45,14 @@ int8_t hard_reset = 0;
 int8_t soft_reset = 0;
 
 int8_t count = 0;
+int tq_counter = -1; //time quanta counter
 
 #ifdef TEST
-  int tq_counter=-1; //time quanta counter
-  int8_t bus_value[BITS_QUANTITY][16] = {
-    {0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
-    {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-    {0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1}
-  };
+int8_t bus_value[BITS_QUANTITY][16] = {
+  {0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+  {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+  {0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
+};
 #endif
 
 
@@ -68,14 +68,13 @@ void edgeDetector() {
 void callback()
 {
   // SYNTETHIC BUS READING
-  #ifdef TEST
+#ifdef TEST
   tq_counter += 1;
-  if((tq_counter / 16) > (BITS_QUANTITY - 1)){
+  if ((tq_counter / 16) > (BITS_QUANTITY - 1)) {
     tq_counter = 0;
   }
-  #endif
+#endif
 
-  
   digitalWrite(pin_time_quanta, digitalRead(pin_time_quanta) ^ 1);
   waitingTimeQuanta = false;
   Serial.print("TQ: ");
@@ -138,9 +137,9 @@ void printStateInfo (bool debugFlag, bool pinStatus) {
     }
     if (sample_point)
       Serial.println(" sample_point = 1");
-    if(soft_reset)
+    if (soft_reset)
       Serial.println(" soft_reset = 1");
-    if(hard_reset)
+    if (hard_reset)
       Serial.println(" hard_reset = 1");
 
   }
@@ -158,21 +157,24 @@ void printStateInfo (bool debugFlag, bool pinStatus) {
   }
 }
 
-bool check_idle(){
-  //bool idle_value =  digitalRead(pin_idle);
+bool check_idle() {
+#ifdef TEST
   bool idle_value = false;
+#else
+  bool idle_value =  digitalRead(pin_idle);
+#endif
   return idle_value;
 }
 
 void setIOPins() {
   //INPUTS
-  #ifdef TEST
-    int i = tq_counter / 16;
-    int j = tq_counter % 16;
-    rx = bus_value[i][j];
-  #else
-    rx = digitalRead(pin_RX);
-  #endif
+#ifdef TEST
+  int i = tq_counter / 16;
+  int j = tq_counter % 16;
+  rx = bus_value[i][j];
+#else
+  rx = digitalRead(pin_RX);
+#endif
 
   edgeDetector();
   idle = check_idle();
@@ -217,20 +219,20 @@ void loop() {
     setIOPins();
 
     //hard reset logic
-    if(check_idle() && negedge_rx){
+    if (check_idle() && negedge_rx) {
       Serial.println("hard reset trigger");
       hard_reset = 0x1;
     }
     else
       hard_reset = 0x0;
     //soft reset logic
-    if(!check_idle() && negedge_rx){
+    if (!check_idle() && negedge_rx) {
       Serial.println("soft reset trigger");
       soft_reset = 0x1;
     }
     else
       soft_reset = 0x0;
-    
+
     switch (state) {
 
       case START_STATE:
@@ -321,5 +323,3 @@ void loop() {
   }
 
 }
-
-
