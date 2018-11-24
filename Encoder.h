@@ -1,9 +1,9 @@
-#ifndef DECODER_H
-#define DECODER_H
+#ifndef ENCODER_H
+#define ENCODER_H
 
 #include <Arduino.h>
 
-class Decoder {
+class Encoder {
 
     public:
 
