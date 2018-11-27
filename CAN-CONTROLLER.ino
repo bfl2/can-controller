@@ -1,4 +1,5 @@
 #include "BitTiming.h"
+#include "BitDeStuffing.h"
 
 #define PIN_TIME_QUANTA 13
 #define PIN_RX 11 //Input
@@ -27,6 +28,7 @@ BitTiming bit_timing = BitTiming(PIN_RX,
                         SJW,
                         TSEG1,
                         TSEG2);
+BitDeStuffing bit_de_stuffing = BitDeStuffing();
 
 #ifdef TEST
   #define BITS_QUANTITY 3
@@ -70,6 +72,7 @@ void setup()
 
     Timer1.initialize(TQ);
     Timer1.attachInterrupt(callback);
+    
 }
 
 void loop() {
@@ -77,5 +80,7 @@ void loop() {
         bit_timing.execute();
         //decoder();
         waitingTimeQuanta = true;
+        
+       
     }
 }
