@@ -48,7 +48,7 @@ class Encoder {
     bool i_wrote;
     int8_t write_byte;
     int8_t bit_counter;
-    int8_t dlc_bit_counter;
+    int8_t data_counter;
 
 };
 

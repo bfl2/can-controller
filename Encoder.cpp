@@ -7,11 +7,11 @@ enum states {
     RTR_STATE,
     LOST_ARBITRATION_STATE,
     IDE_STATE,
-    GAINED_ARBITRATION,
     RESERVED_STATE,
     RESERVED_STATE_2,
     DLC_STATE,
-    DATA_STATE
+    DATA_STATE,
+    CRC_ACK_STATE
 };
 
 Encoder::Encoder(int16_t id_a,
@@ -176,7 +176,7 @@ void Encoder::execute(int8_t sample_point, int8_t write_point, int8_t *data, int
             this->WriteBit(0);
             this->write_byte = 0;
             this->bit_counter = 0;
-            this->dlc_bit_counter = 0;
+            this->data_counter = 0;
             this->AddToWrite(data_size, 4);
 
             if(this->frame_type == EXTENDED)
@@ -195,14 +195,29 @@ void Encoder::execute(int8_t sample_point, int8_t write_point, int8_t *data, int
 
         case DLC_STATE:
             this->WriteBit(this->NextBitFromBuffer());
-            this->dlc_bit_counter += 1;
+            this->bit_counter += 1;
 
-            if(this->dlc_bit_counter == 4){
+            if(this->bit_counter == 4){
+                this->bit_counter = 0;
+                this->AddToWrite(data[0]);
                 this->state = DATA_STATE;
             }
             break;
 
         case DATA_STATE:
+            this->WriteBit(this->NextBitFromBuffer());
+            this->bit_counter += 1;
+            if(this->bit_counter == 8){
+                this->bit_counter = 0;
+                this->data_counter += 1;
+                this->AddToWrite(data[this->data_counter]);
+            }
+            if(this->data_counter == data_size){
+                this->state = CRC_STATE;
+            }
+            break;
+        
+        case CRC_ACK_STATE:
             break;
 
         default:
