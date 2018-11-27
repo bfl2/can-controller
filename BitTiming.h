@@ -25,7 +25,7 @@ public:
 
     //BIT TIMING METHODS
     void edgeDetector();
-    void printStateInfo (bool debugFlag, bool pinStatus);
+    void printStateInfo(bool debugFlag, bool pinStatus);
     bool checkIdle();
     void setIOPins();
     void execute();
