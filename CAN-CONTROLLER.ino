@@ -2,6 +2,7 @@
 #include "BitDeStuffing.h"
 
 #define PIN_TIME_QUANTA 13
+#define PIN_TX 12 //Output
 #define PIN_RX 11 //Input
 #define PIN_STATE_2 10
 #define PIN_STATE_1 9
@@ -17,7 +18,8 @@
 #define TQ  1000000 // in microseconds
 #define TEST
 
-bool waitingTimeQuanta = true;
+#define ID_A 13
+#define ID_B 13
 
 BitTiming bit_timing = BitTiming(PIN_RX,
                         PIN_TIME_QUANTA,
@@ -30,6 +32,13 @@ BitTiming bit_timing = BitTiming(PIN_RX,
                         TSEG2);
 BitDeStuffing bit_de_stuffing = BitDeStuffing();
 
+Encoder encoder = Encoder(ID_A,
+                    ID_B,
+                    EXTENDED,
+                    PIN_TX,
+                    PIN_RX);
+
+
 #ifdef TEST
   #define BITS_QUANTITY 3
   int tq_counter=-1; //time quanta counter
@@ -39,6 +48,16 @@ BitDeStuffing bit_de_stuffing = BitDeStuffing();
     {0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1}
   };
 #endif
+
+bool waiting_time_quanta = true;
+bool want_write = false;
+bool data_buffered = false;
+bool bus_idle = true;
+bool data_recv = false;
+unsigned long time_delay = 0;
+
+unsigned long long TX_DATA = 0x0;
+unsigned long long RX_DATA = 0x0;
 
 void callback()
 {
@@ -53,7 +72,7 @@ void callback()
     #endif
 
     digitalWrite(PIN_TIME_QUANTA, digitalRead(PIN_TIME_QUANTA) ^ 1);
-    waitingTimeQuanta = false;
+    waiting_time_quanta = false;
 
 }
 
@@ -72,15 +91,40 @@ void setup()
 
     Timer1.initialize(TQ);
     Timer1.attachInterrupt(callback);
-    
+
+    //check if can put the roll
+    if(digitalRead(PIN_RX) == HIGH)     //recessive
+        bus_idle = true;
+    else if(digitalRead(PIN_RX) == LOW) //dominant
+        bus_idle = false;
+}
+
+void application(){
+    if(data_recv){
+
+    }
+
+    if((!data_buffered) && ((time_delay-micros()) == 1000)){
+        DATA[0] = 199;
+        time_delay = micros();
+        data_buffered = true;
+    }
 }
 
 void loop() {
-    if(!waitingTimeQuanta){
+    if(!waiting_time_quanta){
         bit_timing.execute();
-        //decoder();
-        waitingTimeQuanta = true;
-        
-       
+        bit_destuffing.execute();
+
+        //check if buss is idle
+        if((!bus_idle) && bit_destuffing.output_sample_point){
+            decoder.execute();
+        }
+        else if(bus_idle && bit_timing.write_point){
+            encoder(bit_destuffing.output_sample_point)
+        }
+        waiting_time_quanta = true;
     }
+
+    application();
 }

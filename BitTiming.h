@@ -19,7 +19,9 @@ public:
                 int8_t tseg1,
                 int8_t tseg2);
 
-    int8_t bus_value;
+    int8_t syntethic_rx;
+    int8_t write_point;
+    int8_t sample_point;
 
     //BIT TIMING METHODS
     void edgeDetector();
@@ -39,8 +41,6 @@ private:
     int8_t next_state;
     int8_t count_tseg1;
     int8_t count_tseg2;
-    int8_t sample_point;
-    int8_t write_point;
     int8_t e;
     int8_t rx;
     int8_t sjw;

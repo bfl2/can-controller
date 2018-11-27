@@ -108,7 +108,7 @@ bool BitTiming::checkIdle(){
 void BitTiming::setIOPins() {
     //INPUTS
     #ifdef TEST
-        this->rx = this->bus_value;
+        this->rx = this->syntethic_rx;
     #else
         this->rx = digitalRead(this->pin_rx);
     #endif
@@ -123,12 +123,12 @@ void BitTiming::setIOPins() {
 
     //displaying states
     switch (this->state) {
-        case START_STATE: //00
+        case START_STATE: //0x00
         digitalWrite(this->pin_state_1, LOW);
         digitalWrite(this->pin_state_2, LOW);
         break;
 
-        case COUNT_TSEG1_STATE://01
+        case COUNT_TSEG1_STATE://0x01
         digitalWrite(this->pin_state_1, LOW);
         digitalWrite(this->pin_state_2, HIGH);
         break;
@@ -136,7 +136,7 @@ void BitTiming::setIOPins() {
         case COMPENSATE1_STATE:
         break;
 
-        case COUNT_TSEG2_STATE://10
+        case COUNT_TSEG2_STATE://0x10
         digitalWrite(this->pin_state_1, HIGH);
         digitalWrite(this->pin_state_2, LOW);
         break;
