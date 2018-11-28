@@ -492,11 +492,11 @@ int8_t Encoder::Execute(
 
             if(this->bit_counter == 8){
                 if(this->frame_type == STANDARD){
-                    this->standard_payload.b[this->data_counter] = 
+                    this->standard_payload.b[3+this->data_counter] = 
                             ReverseBits(data[(data_size - this->data_counter - 1)], 8);
                 }
                 else if(this->frame_type ==  EXTENDED){
-                    this->extended_payload.b[this->data_counter] = 
+                    this->extended_payload.b[5+this->data_counter] = 
                             ReverseBits(data[(data_size - this->data_counter - 1)], 8);
                 }
 
@@ -512,13 +512,13 @@ int8_t Encoder::Execute(
                     max_bytes = 3 + data_size;
                     for(int i=0; i < max_bytes; i++)
                         this->frame_crc = CrcNext(this->frame_crc,
-                                                    ReverseBits(this->standard_payload.b[i], 8));
+                                                    ReverseBits(this->standard_payload.b[i] & 0xff, 8));
                 }
                 else if(this->frame_type == EXTENDED){
                     max_bytes = 5 + data_size;
                     for(int i=0; i < max_bytes; i++)
                         this->frame_crc = CrcNext(this->frame_crc,
-                                                  ReverseBits(this->extended_payload.b[i], 8));
+                                                  ReverseBits(this->standard_payload.b[i] & 0xff, 8));
                 }
 
                 this->AddToWrite(this->frame_crc, 15);

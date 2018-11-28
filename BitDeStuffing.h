@@ -1,7 +1,8 @@
 #ifndef BIT_DE_STUFFING_H
 #define BIT_DE_STUFFING_H
 
-#include <Arduino.h>
+//#include <Arduino.h>
+#include<stdint.h>
 
 
 class BitDeStuffing {

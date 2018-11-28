@@ -2,6 +2,7 @@
 #define DECODER_H
 
 //#include <Arduino.h>
+#include <stdio.h>
 #include <stdint.h>
 #include "Crc.h"
 
@@ -17,6 +18,7 @@ class Decoder {
         void displayStateInfo();
         void displayFrameRead();
         void execute(int8_t rx);
+        void displayVariables();
 
         
         //interest Bits
@@ -25,7 +27,9 @@ class Decoder {
         int8_t rtr;
         int8_t srr;
         int8_t ide;
+        int8_t dlc;
         int8_t reserved;
+        int8_t data_count_aux;
         int16_t ida;
         int32_t idb; //extended identifier
         int64_t data;

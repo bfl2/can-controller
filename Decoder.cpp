@@ -24,7 +24,7 @@ enum states  {
 
 Decoder::Decoder (){
     this->idle = 1;
-
+    this->state = IDLE_ST;
 }
 
 void Decoder::initInterestBits() {
@@ -43,6 +43,7 @@ void Decoder::initInterestBits() {
 
 int64_t Decoder::build_standard_frame () {
     // frame example: SOF0 IDA00000010100 RTR0 IDE0 RB0 DTLEN0001 DATA00000001 CRC01000011000000 CRC_D1 ACK0 ACK_DEL1 EOF1111111 111
+    
 
     int64_t frame = 0;
     int8_t bit_count;
@@ -54,33 +55,33 @@ int64_t Decoder::build_standard_frame () {
     int64_t data = 1;
     int16_t crc = 4288;
     int8_t eof = 127;
-    frame << 1;
+    frame <<= 1;
     frame += sof;
-    frame << 11;
+    frame <<= 11;
     frame += ida;
-    frame << 1;
+    frame <<= 1;
     frame += rtr;
-    frame << 1;
+    frame <<= 1;
     frame += ide;
-    frame << 1;
+    frame <<= 1;
     frame += 0; // reserved bit
-    frame << 4;
+    frame <<= 4;
     frame += dtlen;
-    frame << 8;
+    frame <<= 8;
     frame += 1;
-    frame << 15;
+    frame <<= 15;
     frame += crc;
-    frame << 1;
+    frame <<= 1;
     frame += 1;//crc del
-    frame << 1;
+    frame <<= 1;
     frame += 0; //ack
-    frame << 1;
+    frame <<= 1;
     frame += 1;//ack del
-    frame << 7;
+    frame <<= 7;
     frame += eof;
-    frame << 1;
+    frame <<= 1;
     frame += ide;
-    frame << 3;
+    frame <<= 3;
     frame += 7;//intermission
     
 
@@ -101,33 +102,33 @@ int64_t Decoder::build_standard_frame_reversed () {
     int16_t crc = 4288;
     int8_t eof = 127;
 
-    frame << 3;
+    frame <<= 3;
     frame += 7;//intermission
-    frame << 1;
+    frame <<= 1;
     frame += ide;
-    frame << 7;
+    frame <<= 7;
     frame += eof;
-    frame << 1;
+    frame <<= 1;
     frame += 1;//ack del
-    frame << 1;
+    frame <<= 1;
     frame += 0; //ack
-    frame << 1;
+    frame <<= 1;
     frame += 1;//crc del
-    frame << 15;
+    frame <<= 15;
     frame += crc;
-    frame << 8;
+    frame <<= 8;
     frame += 1;
-    frame << 4;
+    frame <<= 4;
     frame += dtlen;
-    frame << 1;
+    frame <<= 1;
     frame += 0; // reserved bit
-    frame << 1;
+    frame <<= 1;
     frame += rtr;
-    frame << 1;
+    frame <<= 1;
     frame += ide;
-    frame << 11;
+    frame <<= 11;
     frame += ida;
-    frame << 1;
+    frame <<= 1;
     frame += sof;
     
     return frame;
@@ -152,24 +153,33 @@ void Decoder::displayStateInfo() {
     Serial.print(" RX: ");
     Serial.println(this->rx);
     #else
-    std::cout << "State: " << this->state <<std::endl;
- 
+    printf("State: \n");
     #endif
 
 }
 
 void Decoder::displayFrameRead() {
+    #ifdef ARDUINO
     Serial.print("Frame Read: ");
     Serial.print("");
+    #else
+    printf("Frame Read: %d %d %d %d %ld", this->ida, this->rtr, this->ide, this->dlc, this->data);
+    #endif
+
+}
+
+void Decoder::displayVariables(){
 
 }
 
 void Decoder::execute(int8_t rx) 
 { 
-    int8_t data_count_aux;
     this->rx = rx;
     switch (this->state) {
         case IDLE_ST:
+            #ifndef ARDUINO
+            printf("IDLE\n");
+            #endif
             //Init variables
             initInterestBits();
 
@@ -179,8 +189,11 @@ void Decoder::execute(int8_t rx)
             break;
 
         case IDA_ST:
+            #ifndef ARDUINO
+            printf("IDA\n");
+            #endif
             this->count_ida += 1;
-            this->ida << 1;
+            this->ida <<= 1;
             this->ida += this->rx;
             
             //transitions
@@ -193,6 +206,9 @@ void Decoder::execute(int8_t rx)
             break;
 
         case RTR_SRR_ST:
+            #ifndef ARDUINO
+            printf("RTR_SRR\n");
+            #endif
             this->rtr_srr = this->rx;
 
             //transitions
@@ -201,7 +217,11 @@ void Decoder::execute(int8_t rx)
             break;
 
         case IDE_ST:
+            #ifndef ARDUINO
+            printf("IDE\n");
+            #endif
             this->ide = this->rx;
+            this->rtr = this->rtr_srr;
 
             if(this->ide == 1)
             {
@@ -214,8 +234,11 @@ void Decoder::execute(int8_t rx)
             break;
 
         case EXT_ST:
+            #ifndef ARDUINO
+            printf("EXT\n");
+            #endif
             this->count_idb += 1;
-            this->idb << 1;
+            this->idb <<= 1;
             this->idb += this->rx;
 
              //transitions
@@ -228,23 +251,23 @@ void Decoder::execute(int8_t rx)
             break;
 
         case RTR_ST:
+            #ifndef ARDUINO
+            printf("RTR\n");
+            #endif
+
             this->srr = this->rtr_srr; //frame read previously was srr
             this->rtr = this->rx;
-
-            if(this->ide == 0x0){
-                this->count_reserved = 1;
-                
-            }
-            else if(this->ide == 0x1){
-                this->count_reserved = 2;
-            }
             
             //transitions
             this->next_state = READ_RESERVED_BITS_ST;
+            this->count_reserved = 2;
 
             break;
 
-        case  READ_RESERVED_BITS_ST:
+        case READ_RESERVED_BITS_ST:
+            #ifndef ARDUINO
+            printf("RESERVED\n");
+            #endif
 
             this->reserved <<= 1;
             this->reserved += this->rx;
@@ -253,108 +276,158 @@ void Decoder::execute(int8_t rx)
 
             
             //transitions
-            if (this->data_len == 0)
+            if (this->count_reserved == 0)
             {
+                this->data_len = 4;
+                this->data_count = 0;
                 this->next_state = DATA_LEN_ST;
             }
             
             break;
         
         case DATA_LEN_ST:
-            this->data_len -= 1;
-            this->data_count << 1;
+            #ifndef ARDUINO
+            printf("DATA_LEN\n");
+            #endif
+            this->data_count <<= 1;
             this->data_count += this->rx;
+            this->data_len -= 1;
             //transitions
-            if (this->rtr == 0 && this->data_len == 0) {
-                this->data_count = (this->data_count*8 - 1); 
+            if ((this->rtr == 0) && (this->data_len == 0)) {
+                this->dlc = this->data_count;
+                this->data_count = (this->data_count*8); 
                 this->next_state = DATA_ST;
-                data_count_aux = this->data_count;
-            } else if (this->rtr && this-> data_len == 0) {
+                this->data_count_aux = this->data_count;
+            } else if ((this->rtr == 1) && (this->data_len == 0)) {
                 this->next_state = CRC_ST;
             }
 
             break;
 
         case STD_ST:
+            #ifndef ARDUINO
+            printf("STD\n");
+            #endif
+
+            this->data_count = 0;
+            this->reserved = this->rx;
 
             //transitions
             this->next_state = DATA_LEN_ST;
             break;
 
         case DATA_ST:
-            data_count_aux -= 1;
-            this->data << 1;
+            #ifndef ARDUINO
+            printf("DATA %d\n", this->data_count_aux);
+            #endif
+            this->data_count_aux -= 1;
+            this->data <<= 1;
             this->data += this->rx;
+
             //transitions
-            if ( data_count_aux == 0 ) {
+            if ( this->data_count_aux == 0 ) {
                 if(this->ide == 0x0){    //standard
                     this->standard_payload.p.BLANK=0;
                     this->standard_payload.p.SOF = 0;
                     this->standard_payload.p.ID_A = ReverseBits(this->ida, 11);
                     this->standard_payload.p.RESERVED = this->reserved;
-                    this->standard_payload.p.DLC = ReverseBits(this->data_len, 4);
+                    this->standard_payload.p.DLC = ReverseBits(this->dlc, 4);
                     this->standard_payload.p.IDE = this->ide;
                     this->standard_payload.p.RTR = this->rtr;
                 }
                 else if(this->ide == 0x1){ //extended
                     this->extended_payload.p.BLANK = 0;
                     this->extended_payload.p.SOF = 0;
-                    this->extended_payload.p.ID_A = this->ida;
+                    this->extended_payload.p.ID_A = ReverseBits(this->ida, 11);
+                    this->extended_payload.p.ID_B = ReverseBits(this->ida, 18);
                     this->extended_payload.p.SRR = 1;
                     this->extended_payload.p.RESERVED = ReverseBits(this->reserved, 2);
-                    this->extended_payload.p.DLC = ReverseBits(this->data_len, 4);
+                    this->extended_payload.p.DLC = ReverseBits(this->dlc, 4);
                     this->extended_payload.p.IDE = this->ide;
                     this->extended_payload.p.RTR = this->rtr;
                 }
 
+
                 int64_t data_aux = this->data;
                 this->computed_crc = 0;
-                int8_t data_byte;
+                int16_t data_byte;
                 int8_t max_bytes;
 
-                for(int i=0; i < this->data_len; i++){
+                for(int i=0; i < this->dlc; i++){
                     data_byte = (data_aux & 0xFF);
                     if(this->ide == 0x0)
-                        standard_payload.b[(this->data_len - i - 1)] = ReverseBits(data_byte, 8);
+                        standard_payload.b[3+(this->dlc - i - 1)] = data_byte;
                     else if(this->ide == 0x1)
-                        extended_payload.b[(this->data_len - i - 1)] = ReverseBits(data_byte, 8);
+                        extended_payload.b[5+(this->dlc - i - 1)] = data_byte;
+                    data_aux >>= 8;
                 }
 
                 if(this->ide == 0x0){
-                    max_bytes = 3 + this->data_len;
+                    max_bytes = 3 + this->dlc;
+
+                    printf("DATA(%d): ", max_bytes);
+
                     for(int i=0; i < max_bytes; i++)
+                    {
+                        printf("%X", this->standard_payload.b[i] & 0xff);
+                        // printf("%02x\n", (this->standard_payload.b[i]&0xff));
                         this->computed_crc = CrcNext(this->computed_crc,
-                                                    ReverseBits(this->standard_payload.b[i], 8));
+                                                    this->standard_payload.b[max_bytes - i] & 0xff);
+                    }
+                    printf("\n");
                 }
                 else if(this->ide == 0x1){
-                    max_bytes = 5 + this->data_len;
-                    for(int i=0; i < max_bytes; i++)
+                    max_bytes = 5 + this->dlc;
+                    for(int i=max_bytes; i > 0; i--)
+                    {
                         this->computed_crc = CrcNext(this->computed_crc,
-                                                  ReverseBits(this->extended_payload.b[i], 8));
+                                                  this->extended_payload.b[max_bytes - i] & 0xff);
+                    }
                 }
 
+                printf("CRC: ");
+                uint8_t crc_aux = this->computed_crc;
+                int n;
 
+                for(int i=0; i < 15; i++){
+                    n = crc_aux&0x1;
+                    crc_aux >>= 1;
+                    
+                    printf("%d", n);
+                }
+
+                printf("\n");
+
+                this->crc_count = 15;
                 this->next_state = CRC_ST;
             }
 
             break;
 
         case CRC_ST:
+            #ifndef ARDUINO
+            printf("CRC %d\n", 15-crc_count);
+            #endif
             this->crc_count -= 1;
-            this->crc << 1;
+            this->crc <<= 1;
             this->crc += this->rx;
+
             if (this->crc_count==0) {
                 if(this->crc != this->computed_crc){
+                    printf("TESTE\n");
                     this->crc_error = 1;
-                    this->state = IDLE_ST;
+                    this->next_state = ERROR_FLAG_ST;
                 }
                 else
-                    this->state = CRC_DELIM_ST;
+                    this->next_state = CRC_DELIM_ST;
             }
 
             break;
 
         case CRC_DELIM_ST:
+            #ifndef ARDUINO
+            printf("CRC DELIM\n");
+            #endif
             this->bit_stuffing_enable = 0;
             //transitions
             if (this->rx == 1) {
@@ -368,6 +441,9 @@ void Decoder::execute(int8_t rx)
             break;
         
         case ACK_SLOT_ST:
+            #ifndef ARDUINO
+            printf("ACK SLOT\n");
+            #endif
             this->ack = this->rx;
             //transitions
             this->next_state = ACK_DELIM_ST;
@@ -375,6 +451,9 @@ void Decoder::execute(int8_t rx)
             break;
 
         case ACK_DELIM_ST:
+            #ifndef ARDUINO
+            printf("ACL DELIM\n");
+            #endif
             //transitions
             if (this->rx == 1) {
                 this->next_state = EOF_ST;
@@ -386,6 +465,9 @@ void Decoder::execute(int8_t rx)
             break;
         
         case EOF_ST:
+            #ifndef ARDUINO
+            printf("EOF\n");
+            #endif
             this->eof_count += 1;
             
             //transitions
@@ -396,6 +478,9 @@ void Decoder::execute(int8_t rx)
             break;
 
         case INTERMISSION1_ST:
+            #ifndef ARDUINO
+            printf("INTERMISSION1\n");
+            #endif
 
             //transitions
             if (this->rx == 1) {
@@ -405,6 +490,9 @@ void Decoder::execute(int8_t rx)
             break;
         
         case INTERMISSION2_ST:
+            #ifndef ARDUINO
+            printf("INTERMISSION2\n");
+            #endif
             displayFrameRead();
             //transitions
             if (this->rx == 1) {

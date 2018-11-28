@@ -65,6 +65,7 @@ void BitDeStuffing::runTest() {
 
 void BitDeStuffing::printStatus() 
 {
+    #ifdef ARDUINO
     Serial.print(" RX: ");
     Serial.print(BitDeStuffing::getRx());
     Serial.print(" Sample Point: ");
@@ -73,6 +74,7 @@ void BitDeStuffing::printStatus()
     Serial.print(BitDeStuffing::getStuffingErrorFlag());
     Serial.print(" Estado: ");
     Serial.println(this->state);
+    #endif
 }
 
 void BitDeStuffing::execute(int8_t rx, int8_t bit_stuffing_enable, int8_t sample_point_in) 
