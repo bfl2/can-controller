@@ -132,21 +132,6 @@ void Encoder::AddToWrite(int32_t num, int8_t bits_size){
     this->write_buffer = this->ReverseBits(num, bits_size);
 }
 
-uint16_t Encoder::CrcNext(uint16_t crc, uint8_t data)
-{
-    uint16_t eor;
-    unsigned int i = 8;
-
-    crc ^= (uint16_t)data << 7;
-    do {
-        eor = crc & 0x4000 ? 0x4599 : 0;
-        crc <<= 1;
-        crc ^= eor;
-    } while (--i);
-
-    return crc & 0x7fff;
-}
-
 void Encoder::ErrorFlaging(uint8_t flag){
     this->error_flag = flag;
     this->bit_counter = 0;
@@ -539,14 +524,14 @@ int8_t Encoder::Execute(
                 if(this->frame_type == STANDARD){
                     max_bytes = 3 + data_size;
                     for(int i=0; i < max_bytes; i++)
-                        this->frame_crc = this->CrcNext(this->frame_crc,
-                                                        this->ReverseBits(this->standard_payload.b[i], 8));
+                        this->frame_crc = CrcNext(this->frame_crc,
+                                                    this->ReverseBits(this->standard_payload.b[i], 8));
                 }
                 else if(this->frame_type == EXTENDED){
                     max_bytes = 5 + data_size;
                     for(int i=0; i < max_bytes; i++)
-                        this->frame_crc = this->CrcNext(this->frame_crc,
-                                                        this->ReverseBits(this->extended_payload.b[i], 8));
+                        this->frame_crc = CrcNext(this->frame_crc,
+                                                  this->ReverseBits(this->extended_payload.b[i], 8));
                 }
 
                 this->AddToWrite(this->frame_crc, 15);

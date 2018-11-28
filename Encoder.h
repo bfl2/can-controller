@@ -1,5 +1,5 @@
-#ifndef ENCODER_H
-#define ENCODER_H
+#ifndef __ENCODER_H__
+#define __ENCODER_H__
 #define ZERO 0x1
 #define ONE 0x0
 
@@ -20,55 +20,10 @@
 
 #include <stdint.h>
 #include <stdio.h>
+
+#include "Crc.h"
 //#include <Arduino.h>
 
-typedef struct {
-    unsigned int BLANK      : 5;
-    unsigned int SOF        : 1;
-    unsigned int ID_A       : 11;
-    unsigned int RTR        : 1;
-    unsigned int IDE        : 1;
-    unsigned int RESERVED   : 1;
-    unsigned int DLC        : 4;
-    unsigned int B7         : 8;
-    unsigned int B6         : 8;
-    unsigned int B5         : 8;
-    unsigned int B4         : 8;
-    unsigned int B3         : 8;
-    unsigned int B2         : 8;
-    unsigned int B1         : 8;
-    unsigned int B0         : 8;
-} payload_standard;
-
-typedef struct {
-    unsigned int BLANK      : 1;
-    unsigned int SOF        : 1;
-    unsigned int ID_A       : 11;
-    unsigned int SRR        : 1;
-    unsigned int IDE        : 1;
-    unsigned int ID_B       : 18;
-    unsigned int RTR        : 1;
-    unsigned int RESERVED   : 2;
-    unsigned int DLC        : 4;
-    unsigned int B7         : 8;
-    unsigned int B6         : 8;
-    unsigned int B5         : 8;
-    unsigned int B4         : 8;
-    unsigned int B3         : 8;
-    unsigned int B2         : 8;
-    unsigned int B1         : 8;
-    unsigned int B0         : 8;
-} payload_extended;
-
-union seed_standard{
-    payload_standard p;
-    char b[11];
-};
-
-union seed_extended{
-    payload_extended p;
-    char b[13];
-};
 
 class Encoder{
 
@@ -97,8 +52,6 @@ class Encoder{
         bool idle);
 
     void ErrorFlaging(uint8_t flag);
-
-    uint16_t CrcNext(uint16_t crc, uint8_t data);
 
     private:
 
@@ -143,8 +96,9 @@ class Encoder{
     int8_t stuffing_counter;
 
     //payloads
-    seed_extended extended_payload;
+    
     seed_standard standard_payload;
+    seed_extended extended_payload;
 
 };
 
