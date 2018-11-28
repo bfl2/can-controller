@@ -150,7 +150,7 @@ int8_t Encoder::Execute(
         int32_t id_b,
         int8_t data[8], 
         int8_t data_size,
-        int8_t data_or_remote,
+        int8_t data_frame_flag,
         int frame_type){
 
     uint8_t is_this_stuffed, next_bit;
@@ -344,12 +344,12 @@ int8_t Encoder::Execute(
                     this->next_state = LOST_ARBITRATION_STATE;
                 else{
                     if(this->frame_type == STANDARD){
-                        this->standard_payload.p.RTR = data_or_remote;
+                        this->standard_payload.p.RTR = data_frame_flag;
                         this->next_state = IDE_STATE;
                     }
                         
                     else if(this->frame_type == EXTENDED){
-                        this->extended_payload.p.RTR = data_or_remote;
+                        this->extended_payload.p.RTR = data_frame_flag;
                         this->next_state = RESERVED_STATE;
                     }
                 }
@@ -361,7 +361,7 @@ int8_t Encoder::Execute(
 
                 this->i_wrote = true;
 
-                is_this_stuffed = this->WriteBit(data_or_remote);
+                is_this_stuffed = this->WriteBit(data_frame_flag);
                 if(is_this_stuffed != -1)   //not stuffed
                     this->stuff_wrote = is_this_stuffed;
                 else
@@ -482,7 +482,11 @@ int8_t Encoder::Execute(
             if(this->bit_counter == 4){
                 this->bit_counter = 0;
                 this->AddToWrite(data[0], 8);
-                this->next_state = DATA_STATE;
+                
+                if(data_frame_flag)
+                    this->next_state = DATA_STATE;
+                else
+                    this->next_state = CRC_STATE;
             }
 
             is_this_stuffed = this->WriteBit(next_bit);
@@ -623,9 +627,6 @@ int8_t Encoder::Execute(
         case STUFFING_HANDLER:
             this->stuff_wrote = this->WriteBit(this->stuffed_bit);
             this->state = this->next_state;
-        break;
-
-        case END_STATE:
         break;
 
         default:

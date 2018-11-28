@@ -6,8 +6,8 @@
 #define STANDARD 0x0
 #define EXTENDED 0x1
 
-#define DATA_FRAME 0x0
-#define REMOTE_FRAME 0x1
+#define DATA_FRAME 0x1
+#define REMOTE_FRAME 0x0
 
 #define CRC_GENERATOR 0x4599
 #define CRC_GENERATOR_SPEC 0xC599
@@ -81,7 +81,7 @@ class Encoder{
             int32_t id_b,
             int8_t data[8], 
             int8_t data_size,
-            int8_t data_or_remote,
+            int8_t data_frame_flag,
             int frame_type);
 
     uint16_t CrcNext(uint16_t crc, uint8_t data);
