@@ -6,11 +6,16 @@
 #define STANDARD 0x0
 #define EXTENDED 0x1
 
+#define DATA_FRAME 0x0
+#define REMOTE_FRAME 0x1
+
 #define CRC_GENERATOR 0x4599
 #define CRC_GENERATOR_SPEC 0xC599
 
 #define SW
 
+#include <stdint.h>
+#include <stdio.h>
 //#include <Arduino.h>
 
 typedef struct {
@@ -65,17 +70,26 @@ class Encoder{
 
     public:
 
-    Encoder(int16_t id_a,
-            int32_t id_b,
-            int frame_type,
+    Encoder(
             int8_t pin_tx,
             int8_t pin_rx);
 
-    void Execute(int8_t sample_point, int8_t write_point, int8_t data[8], int8_t data_size);
+    int8_t Execute(
+            int8_t sample_point, 
+            int8_t write_point,
+            int16_t id_a,
+            int32_t id_b,
+            int8_t data[8], 
+            int8_t data_size,
+            int8_t data_or_remote,
+            int frame_type);
+
     uint16_t CrcNext(uint16_t crc, uint8_t data);
 
     private:
 
+    int8_t StuffingState();
+    int8_t __writeBit(int8_t bit);
     int8_t WriteBit(int8_t new_bit);
     int8_t NextBitFromBuffer();
     int32_t ReverseBits(int32_t num, int8_t bits_size);
@@ -85,6 +99,7 @@ class Encoder{
     int error_status;
 
     int8_t state;
+    int8_t next_state;
 
     //pins
     int8_t pin_tx;
@@ -106,6 +121,12 @@ class Encoder{
     int8_t bit_counter;
     int8_t data_counter;
     int8_t stuff_wrote;
+    
+    //bit stuffing control
+    bool stuffing_control;
+    int8_t previous_bit;
+    int8_t stuffed_bit;
+    int8_t stuffing_counter;
 
     //payloads
     seed_extended extended_payload;
