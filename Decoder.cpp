@@ -36,6 +36,33 @@ void Decoder::initInterestBits() {
     this->ack_error = 0;
 }
 
+int64_t build_standard_frame () {
+    // frame example: SOF0 IDA00000010100 RTR0 IDE0 RB0 DTLEN0001 DATA00000001 CRC01000011000000 CRC_D1 ACK0 ACK_DEL1 EOF1111111 111
+
+    int64_t frame = 0;
+    int8_t bit_count;
+    int8_t sof = 0;
+    int16_t ida = 20;
+    frame << 1;
+    frame += sof;
+    frame << 11;
+    frame += ida;
+    
+
+    return frame;
+}
+
+void Decoder::runTest() {
+    
+
+}
+
+void Decoder::displayStateInfo() {
+    Serial.print("State: ");
+    Serial.println(this->state);
+
+}
+
 void Decoder::execute(int8_t rx) 
 { 
     int8_t data_count_aux;
@@ -143,6 +170,12 @@ void Decoder::execute(int8_t rx)
             break;
 
         case CRC_ST:
+        this->crc_count -= 1;
+            this->crc << 1;
+            this->crc += this->rx;
+            if (this->crc_count==0) {
+
+            }
 
             break;
 

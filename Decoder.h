@@ -9,8 +9,12 @@ class Decoder {
         Decoder();
 
         void initInterestBits();
+        int64_t build_standard_frame();
+        void runTest();
+        void displayStateInfo();
         void execute(int8_t rx);
 
+        
         //interest Bits
         int8_t rx;
         int8_t rtr_srr;
@@ -21,6 +25,7 @@ class Decoder {
         int32_t idb; //extended identifier
         int64_t data;
         int16_t data_count;
+        int16_t crc;
         int8_t ack;
         int8_t idle;
         int8_t bit_stuffing_enable;
