@@ -17,6 +17,9 @@ enum states {
     EOF_STATE,
     LOST_ARBITRATION_STATE,
     STUFFING_HANDLER,
+    ACTIVE_ERROR_STATE,
+    PASSIVE_ERROR_STATE,
+    ERROR_DELIMITER_STATE,
     END_STATE
 };
 
@@ -30,6 +33,7 @@ Encoder::Encoder(int8_t pin_tx, int8_t pin_rx)
     this->frame_type = frame_type;  //0 - standard, 1 - extended
     this->id_a = id_a;
     this->id_b = id_b;
+    this->error_flag = NON_ERROR_FLAG;
 
     this->i_wrote = false;
 
@@ -141,6 +145,18 @@ uint16_t Encoder::CrcNext(uint16_t crc, uint8_t data)
     } while (--i);
 
     return crc & 0x7fff;
+}
+
+void Encoder::ErrorFlaging(uint8_t flag){
+    this->error_flag = flag;
+    this->bit_counter = 0;
+
+    if(this->error_flag == ACTIVE_ERROR_FLAG)
+        this->next_state = ACTIVE_ERROR_STATE;
+    else if(this->error_flag == PASSIVE_ERROR_FLAG)
+        this->next_state = PASSIVE_ERROR_FLAG;
+    else if(this->error_flag == NON_ERROR_FLAG)
+        this->next_state = SOF_STATE;
 }
 
 int8_t Encoder::Execute(
@@ -582,10 +598,44 @@ int8_t Encoder::Execute(
             #ifdef SW
             printf("ACK ");
             #endif
-            
-            this->WriteBit(1);
 
-            this->next_state = ACK_DELIMITER_STATE;
+            if((this->i_wrote) && (sample_point == 1)){
+                #ifdef SW
+                printf("CHECK ");
+                #endif
+
+                #ifdef ARDUINO
+                int bus_status = digitalRead(this->pin_rx);
+                #endif
+
+                #ifdef SW
+                int bus_status = this->stuff_wrote;
+                printf("%d", bus_status);
+                #endif
+
+                if(bus_status != this->stuff_wrote){
+                    this->bit_counter = 0;
+
+                    this->ErrorFlaging(ACTIVE_ERROR_FLAG);
+                }
+                    
+                else
+                    this->next_state = ACK_DELIMITER_STATE;
+
+                this->i_wrote = false;
+            }
+            else if(!(this->i_wrote) && (write_point == 1)){
+                #ifdef SW
+                printf("WRITING ");
+                #endif
+
+                next_bit = this->NextBitFromBuffer();
+
+                this->i_wrote = true;
+                this->bit_counter += 1;
+
+                this->WriteBit(1);
+            }
 
         break;
         
@@ -632,14 +682,16 @@ int8_t Encoder::Execute(
 
         case STUFFING_HANDLER:
             this->stuff_wrote = this->WriteBit(this->stuffed_bit);
-            this->state = this->next_state;
 
+            this->state = this->next_state;
         break;
 
         default:
         #ifdef SW
-        printf("dafuq??");
+        printf("Restarting automata\n");
         #endif
+
+        this->next_state = SOF_STATE;
         
         break;
     }
@@ -654,4 +706,67 @@ int8_t Encoder::Execute(
         #endif
         return 0;
     }
+}
+
+int8_t Encoder::ExecuteError(
+    int8_t sample_point, 
+    int8_t write_point,
+    bool idle){
+
+    this->state = this->next_state;
+    this->stuffing_control = false;
+
+    switch(this->state){
+
+        case ACTIVE_ERROR_STATE:
+            #ifdef SW
+            printf("ACTIVE ERROR ");
+            #endif
+
+            this->WriteBit(1);
+            this->bit_counter += 1;
+
+            if(this->bit_counter == 6){
+                this->bit_counter = 0;
+                this->next_state = ERROR_DELIMITER_STATE;
+            }
+        break;
+
+        case PASSIVE_ERROR_STATE:
+            #ifdef SW
+            printf("PASSIVE ERROR ");
+            #endif
+            
+            this->WriteBit(0);
+            this->bit_counter += 1;
+
+            if(this->bit_counter == 6){
+                this->bit_counter = 0;
+                this->next_state = ERROR_DELIMITER_STATE;
+            }
+
+        break;
+
+        case ERROR_DELIMITER_STATE:
+            #ifdef SW
+            printf("ERROR DELIMITER ");
+            #endif
+
+            this->WriteBit(0);
+            this->bit_counter += 1;
+
+            if(this->bit_counter == 8){
+                this->bit_counter = 0;
+                this->ErrorFlaging(NON_ERROR_FLAG);
+            }
+
+        break;
+    }
+
+    #ifdef SW
+    if(this->state != END_STATE)
+        printf("\n");
+    #endif
+
+    return 0;
 }

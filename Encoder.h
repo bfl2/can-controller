@@ -12,6 +12,10 @@
 #define CRC_GENERATOR 0x4599
 #define CRC_GENERATOR_SPEC 0xC599
 
+#define ACTIVE_ERROR_FLAG 1
+#define PASSIVE_ERROR_FLAG -1
+#define NON_ERROR_FLAG 0
+
 #define SW
 
 #include <stdint.h>
@@ -70,6 +74,9 @@ class Encoder{
 
     public:
 
+    //error flag
+    uint8_t error_flag;
+
     Encoder(
             int8_t pin_tx,
             int8_t pin_rx);
@@ -83,6 +90,13 @@ class Encoder{
             int8_t data_size,
             int8_t data_frame_flag,
             int frame_type);
+
+    int8_t ExecuteError(
+        int8_t sample_point, 
+        int8_t write_point,
+        bool idle);
+
+    void ErrorFlaging(uint8_t flag);
 
     uint16_t CrcNext(uint16_t crc, uint8_t data);
 
