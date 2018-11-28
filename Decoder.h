@@ -1,7 +1,9 @@
 #ifndef DECODER_H
 #define DECODER_H
 
-#include <Arduino.h>
+//#include <Arduino.h>
+#include <stdint.h>
+#include "Crc.h"
 
 class Decoder {
 
@@ -23,11 +25,13 @@ class Decoder {
         int8_t rtr;
         int8_t srr;
         int8_t ide;
+        int8_t reserved;
         int16_t ida;
         int32_t idb; //extended identifier
         int64_t data;
         int16_t data_count;
         int16_t crc;
+        int16_t computed_crc;
         int8_t ack;
         int8_t idle;
         int8_t bit_stuffing_enable;
@@ -49,7 +53,9 @@ class Decoder {
         int8_t crc_count;
         int8_t eof_count;
 
-
+        //payloads
+        seed_standard standard_payload;
+        seed_extended extended_payload;
 };
 
 

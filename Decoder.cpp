@@ -231,6 +231,14 @@ void Decoder::execute(int8_t rx)
             this->srr = this->rtr_srr; //frame read previously was srr
             this->rtr = this->rx;
 
+            if(this->ide == 0x0){
+                this->count_reserved = 1;
+                
+            }
+            else if(this->ide == 0x1){
+                this->count_reserved = 2;
+            }
+            
             //transitions
             this->next_state = READ_RESERVED_BITS_ST;
 
@@ -238,7 +246,11 @@ void Decoder::execute(int8_t rx)
 
         case  READ_RESERVED_BITS_ST:
 
+            this->reserved <<= 1;
+            this->reserved += this->rx;
+
             this->count_reserved -= 1;
+
             
             //transitions
             if (this->data_len == 0)
@@ -254,7 +266,7 @@ void Decoder::execute(int8_t rx)
             this->data_count += this->rx;
             //transitions
             if (this->rtr == 0 && this->data_len == 0) {
-                this->data_count = (this->data_count*8 - 1);
+                this->data_count = (this->data_count*8 - 1); 
                 this->next_state = DATA_ST;
                 data_count_aux = this->data_count;
             } else if (this->rtr && this-> data_len == 0) {
@@ -275,17 +287,69 @@ void Decoder::execute(int8_t rx)
             this->data += this->rx;
             //transitions
             if ( data_count_aux == 0 ) {
+                if(this->ide == 0x0){    //standard
+                    this->standard_payload.p.BLANK=0;
+                    this->standard_payload.p.SOF = 0;
+                    this->standard_payload.p.ID_A = ReverseBits(this->ida, 11);
+                    this->standard_payload.p.RESERVED = this->reserved;
+                    this->standard_payload.p.DLC = ReverseBits(this->data_len, 4);
+                    this->standard_payload.p.IDE = this->ide;
+                    this->standard_payload.p.RTR = this->rtr;
+                }
+                else if(this->ide == 0x1){ //extended
+                    this->extended_payload.p.BLANK = 0;
+                    this->extended_payload.p.SOF = 0;
+                    this->extended_payload.p.ID_A = this->ida;
+                    this->extended_payload.p.SRR = 1;
+                    this->extended_payload.p.RESERVED = ReverseBits(this->reserved, 2);
+                    this->extended_payload.p.DLC = ReverseBits(this->data_len, 4);
+                    this->extended_payload.p.IDE = this->ide;
+                    this->extended_payload.p.RTR = this->rtr;
+                }
+
+                int64_t data_aux = this->data;
+                this->computed_crc = 0;
+                int8_t data_byte;
+                int8_t max_bytes;
+
+                for(int i=0; i < this->data_len; i++){
+                    data_byte = (data_aux & 0xFF);
+                    if(this->ide == 0x0)
+                        standard_payload.b[(this->data_len - i - 1)] = ReverseBits(data_byte, 8);
+                    else if(this->ide == 0x1)
+                        extended_payload.b[(this->data_len - i - 1)] = ReverseBits(data_byte, 8);
+                }
+
+                if(this->ide == 0x0){
+                    max_bytes = 3 + this->data_len;
+                    for(int i=0; i < max_bytes; i++)
+                        this->computed_crc = CrcNext(this->computed_crc,
+                                                    ReverseBits(this->standard_payload.b[i], 8));
+                }
+                else if(this->ide == 0x1){
+                    max_bytes = 5 + this->data_len;
+                    for(int i=0; i < max_bytes; i++)
+                        this->computed_crc = CrcNext(this->computed_crc,
+                                                  ReverseBits(this->extended_payload.b[i], 8));
+                }
+
+
                 this->next_state = CRC_ST;
             }
 
             break;
 
         case CRC_ST:
-        this->crc_count -= 1;
+            this->crc_count -= 1;
             this->crc << 1;
             this->crc += this->rx;
             if (this->crc_count==0) {
-                this->next_state = crc-CRC_DELIM_ST;
+                if(this->crc != this->computed_crc){
+                    this->crc_error = 1;
+                    this->state = IDLE_ST;
+                }
+                else
+                    this->state = CRC_DELIM_ST;
             }
 
             break;
