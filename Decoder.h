@@ -8,7 +8,7 @@ class Decoder {
     public:
         Decoder();
 
-
+        void initInterestBits();
         void execute(int8_t rx);
 
         //interest Bits
@@ -21,6 +21,14 @@ class Decoder {
         int32_t idb; //extended identifier
         int64_t data;
         int16_t data_count;
+        int8_t ack;
+        int8_t idle;
+        int8_t bit_stuffing_enable;
+
+        //Error Bits
+        int8_t bit_destuffing_error;
+        int8_t crc_error;
+        int8_t ack_error;
 
     private:
 
@@ -32,6 +40,7 @@ class Decoder {
         int8_t count_reserved;
         int8_t data_len;
         int8_t crc_count;
+        int8_t eof_count;
 
 
 };

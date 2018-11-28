@@ -18,9 +18,23 @@ enum states  {
     ACK_DELIM_ST,
     EOF_ST,
     INTERMISSION1_ST,
-    INTERMISSION2_ST
+    INTERMISSION2_ST,
+    ERROR_FLAG_ST
 };
 
+void Decoder::initInterestBits() {
+    this->ida = 0;
+    this->count_ida = 0;
+    this->count_idb = 0;
+    this->data = 0;
+    this->data_len = 4;
+    this->crc_count = 15;
+    this->eof_count = 0;
+    this->bit_stuffing_enable = 1;
+    this->bit_destuffing_error = 0;
+    this->crc_error = 0;
+    this->ack_error = 0;
+}
 
 void Decoder::execute(int8_t rx) 
 { 
@@ -29,15 +43,11 @@ void Decoder::execute(int8_t rx)
     switch (this->state) {
         case IDLE_ST:
             //Init variables
-            this->ida = 0;
-            this->count_ida = 0;
-            this->count_idb = 0;
-            this->data = 0;
-            this->data_len = 4;
-            this->crc_count = 15;
+            initInterestBits();
 
             if (this->rx == 0)
                 this->next_state = IDA_ST;
+                this->idle = 0;
             break;
 
         case IDA_ST:
@@ -137,19 +147,62 @@ void Decoder::execute(int8_t rx)
             break;
 
         case CRC_DELIM_ST:
+            this->bit_stuffing_enable = 0;
+            //transitions
+            if (this->rx == 1) {
+                this->ack_error;
+                this->next_state = ERROR_FLAG_ST;
+
+            } else {
+                this->next_state = ACK_SLOT_ST;
+            }
 
             break;
         
         case ACK_SLOT_ST:
+            this->ack = this->rx;
+            //transitions
+            this->next_state = ACK_DELIM_ST;
 
             break;
 
         case ACK_DELIM_ST:
+            //transitions
+            if (this->rx == 1) {
+                this->next_state = EOF_ST;
+            } else {
+                this->next_state = ERROR_FLAG_ST;
+                this->ack_error = 1;
+            }
 
             break;
         
         case EOF_ST:
+            this->eof_count += 1;
+            
+            //transitions
+            if (this->eof_count == 7) {
+                this->next_state = INTERMISSION1_ST;
+            }
 
+            break;
+
+        case INTERMISSION1_ST:
+
+            //transitions
+            if (this->rx == 1) {
+                this->next_state = INTERMISSION2_ST;
+            }
+
+            break;
+        
+        case INTERMISSION2_ST:
+
+            //transitions
+            if (this->rx == 1) {
+                this->next_state = IDLE_ST;
+                this->idle = 1;
+            }
             break;
         
         
