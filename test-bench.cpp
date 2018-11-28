@@ -29,7 +29,7 @@ int main(){
             break;
         }
         else
-            status = e.Execute(1, 1, 1, 0, data, 1, REMOTE_FRAME, STANDARD);
+            status = e.Execute(1, 1, 1, 0, data, 1, REMOTE_FRAME, EXTENDED);
     }
 
     return 0;

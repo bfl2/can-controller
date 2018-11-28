@@ -1,7 +1,6 @@
 #include "Encoder.h"
 
 enum states {
-    IDLE_STATE,
     SOF_STATE,
     ARBITRATION_STATE,
     SRR_STATE,
@@ -23,7 +22,7 @@ enum states {
 
 Encoder::Encoder(int8_t pin_tx, int8_t pin_rx)
 {
-    this->state = IDLE_STATE;
+    this->state = SOF_STATE;
     this->stuffing_counter = 0;
     this->frame_header = 0x0;
     this->error_status = 0x0;
@@ -125,6 +124,7 @@ int32_t Encoder::ReverseBits(int32_t num, int8_t bits_size){
 }
 
 void Encoder::AddToWrite(int32_t num, int8_t bits_size){
+    this->write_buffer = 0;
     this->write_buffer = this->ReverseBits(num, bits_size);
 }
 
@@ -160,14 +160,6 @@ int8_t Encoder::Execute(
     
     switch(this->state)
     {
-        case IDLE_STATE:
-            #ifdef SW
-            printf("IDLE");
-            #endif
-
-            this->next_state = SOF_STATE;
-        break;
-
         case SOF_STATE:
             #ifdef SW
             printf("SOF ");
@@ -296,11 +288,12 @@ int8_t Encoder::Execute(
                 printf("%d", bus_status);
                 #endif
 
+                this->i_wrote = false;
+
                 if(bus_status != this->stuff_wrote)
                     this->next_state = LOST_ARBITRATION_STATE;
                 else
                     this->next_state = IDE_STATE;
-
             }
             else if(!(this->i_wrote) && write_point == 1){
                 #ifdef SW
@@ -339,6 +332,8 @@ int8_t Encoder::Execute(
                 int bus_status = this->stuff_wrote;
                 printf("%d", bus_status);
                 #endif
+
+                this->i_wrote = false;
 
                 if(bus_status != this->stuff_wrote)
                     this->next_state = LOST_ARBITRATION_STATE;
@@ -400,11 +395,14 @@ int8_t Encoder::Execute(
                     printf("%d", bus_status);
                     #endif
 
+                    this->i_wrote = false;
+
                     if(bus_status != this->stuff_wrote)
                         this->next_state = LOST_ARBITRATION_STATE;
-                    else
+                    else{
+                        this->AddToWrite(this->id_b, 18);
                         this->next_state = ARBITRATION_STATE;
-
+                    }
                 }
                 else if(!(this->i_wrote) && write_point == 1){
                     #ifdef SW
@@ -452,7 +450,7 @@ int8_t Encoder::Execute(
                 this->stuff_wrote = is_this_stuffed;
             else
                 goto end_automata;
-                
+
         break;
 
         case RESERVED_STATE_2:
@@ -560,6 +558,7 @@ int8_t Encoder::Execute(
                 this->stuff_wrote = is_this_stuffed;
             else
                 goto end_automata;
+
         break;
 
         case CRC_DELIMITER_STATE:
@@ -611,9 +610,10 @@ int8_t Encoder::Execute(
                     printf("\n");
                 #endif
 
-                this->next_state = IDLE_STATE;
+                this->next_state = SOF_STATE;
                 return 10;  //finished status
             }
+
         break;
 
         case LOST_ARBITRATION_STATE:
@@ -622,17 +622,20 @@ int8_t Encoder::Execute(
             #endif
 
             return 1;   //lost arbitration status
+
         break;
 
         case STUFFING_HANDLER:
             this->stuff_wrote = this->WriteBit(this->stuffed_bit);
             this->state = this->next_state;
+
         break;
 
         default:
         #ifdef SW
         printf("dafuq??");
         #endif
+        
         break;
     }
 
