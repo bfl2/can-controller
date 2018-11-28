@@ -26,8 +26,9 @@ class Decoder {
 
         int8_t state;
         int8_t next_state;
+        int8_t last_rx;
         int8_t count_ida;
-        int8_t count_ex;
+        int8_t count_idb;
         int8_t count_reserved;
         int8_t data_len;
         int8_t crc_count;

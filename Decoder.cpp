@@ -31,7 +31,7 @@ void Decoder::execute(int8_t rx)
             //Init variables
             this->ida = 0;
             this->count_ida = 0;
-            this->count_ex = 0;
+            this->count_idb = 0;
             this->data = 0;
             this->data_len = 4;
             this->crc_count = 15;
