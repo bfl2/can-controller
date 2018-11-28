@@ -520,13 +520,18 @@ int8_t Encoder::Execute(
                 int max_bytes;
                 this->frame_crc = 0;
 
-                if(this->frame_type == STANDARD)
+                if(this->frame_type == STANDARD){
                     max_bytes = 3 + data_size;
-                else if(this->frame_type == EXTENDED)
+                    for(int i=0; i < max_bytes; i++)
+                        this->frame_crc = this->CrcNext(this->frame_crc,
+                                                        this->ReverseBits(this->standard_payload.b[i], 8));
+                }
+                else if(this->frame_type == EXTENDED){
                     max_bytes = 5 + data_size;
-                
-                for(int i=0; i < max_bytes; i++)
-                    this->frame_crc = this->CrcNext(this->frame_crc, this->ReverseBits(data[i], 8));
+                    for(int i=0; i < max_bytes; i++)
+                        this->frame_crc = this->CrcNext(this->frame_crc,
+                                                        this->ReverseBits(this->extended_payload.b[i], 8));
+                }
 
                 this->AddToWrite(this->frame_crc, 15);
                 this->bit_counter = 0;
