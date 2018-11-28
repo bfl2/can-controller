@@ -17,6 +17,7 @@ class Decoder {
         void runTest(int64_t frame, int8_t len);
         void displayStateInfo();
         void displayFrameRead();
+        void execute(int8_t rx, int8_t sample_point, int8_t bit_destuffing_error);
         void execute(int8_t rx);
         void displayVariables();
 
@@ -43,6 +44,7 @@ class Decoder {
         //Error Bits
         int8_t bit_destuffing_error;
         int8_t crc_error;
+        int8_t crc_delim_error;
         int8_t ack_error;
 
     private:
@@ -56,6 +58,7 @@ class Decoder {
         int8_t data_len;
         int8_t crc_count;
         int8_t eof_count;
+        int8_t error_count;
 
         //payloads
         seed_standard standard_payload;

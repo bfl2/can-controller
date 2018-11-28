@@ -19,7 +19,9 @@ enum states  {
     EOF_ST,
     INTERMISSION1_ST,
     INTERMISSION2_ST,
-    ERROR_FLAG_ST
+    ERROR_FLAG_ST,
+    ERROR_SUPERPOSITION_ST,
+    ERROR_DELIMITER_ST
 };
 
 Decoder::Decoder (){
@@ -170,6 +172,13 @@ void Decoder::displayFrameRead() {
 
 void Decoder::displayVariables(){
 
+}
+
+void Decoder::execute(int8_t rx, int8_t sample_point, int8_t bit_destuffing_error) {
+    if (sample_point == 1) {
+        this->bit_destuffing_error = bit_destuffing_error;
+        execute(rx);
+    }
 }
 
 void Decoder::execute(int8_t rx) 
@@ -416,6 +425,7 @@ void Decoder::execute(int8_t rx)
                 if(this->crc != this->computed_crc){
                     printf("TESTE\n");
                     this->crc_error = 1;
+                    this->error_count = 5;
                     this->next_state = ERROR_FLAG_ST;
                 }
                 else
@@ -431,7 +441,8 @@ void Decoder::execute(int8_t rx)
             this->bit_stuffing_enable = 0;
             //transitions
             if (this->rx == 1) {
-                this->ack_error;
+                this->crc_delim_error = 1;
+                this->error_count = 5;
                 this->next_state = ERROR_FLAG_ST;
 
             } else {
@@ -459,6 +470,7 @@ void Decoder::execute(int8_t rx)
                 this->next_state = EOF_ST;
             } else {
                 this->next_state = ERROR_FLAG_ST;
+                this->error_count = 5;
                 this->ack_error = 1;
             }
 
@@ -500,6 +512,36 @@ void Decoder::execute(int8_t rx)
                 this->idle = 1;
             }
             break;
+
+        case ERROR_FLAG_ST:
+            #ifndef ARDUINO
+            printf("ERROR FLAG\n");
+            #endif
+            this->error_count -= 1;
+            //transitions
+            if( this->error_count ==0 ) {
+                this->next_state = ERROR_SUPERPOSITION_ST;
+            }
+
+            break;
+
+        case ERROR_SUPERPOSITION_ST:
+            #ifndef ARDUINO
+            printf("ERROR_SUPERPOSITION\n");
+            #endif
+            if ( this->rx == 1 ) {
+                this->next_state = ERROR_DELIMITER_ST;
+            }
+
+            break;
+         case ERROR_DELIMITER_ST:
+            #ifndef ARDUINO
+            printf("ERROR_DELIMITER\n");
+            #endif
+            this->idle = 1;
+            this->next_state = IDLE_ST;
+            break;
+
 
     }
 
