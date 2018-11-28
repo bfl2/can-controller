@@ -52,5 +52,6 @@ union seed_extended{
 };
 
 uint16_t CrcNext(uint16_t crc, uint8_t data);
+int32_t ReverseBits(int32_t num, int8_t bits_size);
 
 #endif
