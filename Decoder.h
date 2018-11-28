@@ -10,8 +10,10 @@ class Decoder {
 
         void initInterestBits();
         int64_t build_standard_frame();
-        void runTest();
+        int64_t build_standard_frame_reversed();
+        void runTest(int64_t frame, int8_t len);
         void displayStateInfo();
+        void displayFrameRead();
         void execute(int8_t rx);
 
         

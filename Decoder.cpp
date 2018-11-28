@@ -22,6 +22,11 @@ enum states  {
     ERROR_FLAG_ST
 };
 
+Decoder::Decoder (){
+    this->idle = 1;
+
+}
+
 void Decoder::initInterestBits() {
     this->ida = 0;
     this->count_ida = 0;
@@ -36,30 +41,126 @@ void Decoder::initInterestBits() {
     this->ack_error = 0;
 }
 
-int64_t build_standard_frame () {
+int64_t Decoder::build_standard_frame () {
     // frame example: SOF0 IDA00000010100 RTR0 IDE0 RB0 DTLEN0001 DATA00000001 CRC01000011000000 CRC_D1 ACK0 ACK_DEL1 EOF1111111 111
 
     int64_t frame = 0;
     int8_t bit_count;
     int8_t sof = 0;
     int16_t ida = 20;
+    int8_t rtr = 0;
+    int8_t ide = 0;
+    int8_t dtlen = 1;
+    int64_t data = 1;
+    int16_t crc = 4288;
+    int8_t eof = 127;
     frame << 1;
     frame += sof;
     frame << 11;
     frame += ida;
+    frame << 1;
+    frame += rtr;
+    frame << 1;
+    frame += ide;
+    frame << 1;
+    frame += 0; // reserved bit
+    frame << 4;
+    frame += dtlen;
+    frame << 8;
+    frame += 1;
+    frame << 15;
+    frame += crc;
+    frame << 1;
+    frame += 1;//crc del
+    frame << 1;
+    frame += 0; //ack
+    frame << 1;
+    frame += 1;//ack del
+    frame << 7;
+    frame += eof;
+    frame << 1;
+    frame += ide;
+    frame << 3;
+    frame += 7;//intermission
     
 
     return frame;
 }
 
-void Decoder::runTest() {
+int64_t Decoder::build_standard_frame_reversed () {
+    // frame example: SOF0 IDA00000010100 RTR0 IDE0 RB0 DTLEN0001 DATA00000001 CRC01000011000000 CRC_D1 ACK0 ACK_DEL1 EOF1111111 111
+
+    int64_t frame = 0;
+    int8_t bit_count;
+    int8_t sof = 0;
+    int16_t ida = 20;
+    int8_t rtr = 0;
+    int8_t ide = 0;
+    int8_t dtlen = 1;
+    int64_t data = 1;
+    int16_t crc = 4288;
+    int8_t eof = 127;
+
+    frame << 3;
+    frame += 7;//intermission
+    frame << 1;
+    frame += ide;
+    frame << 7;
+    frame += eof;
+    frame << 1;
+    frame += 1;//ack del
+    frame << 1;
+    frame += 0; //ack
+    frame << 1;
+    frame += 1;//crc del
+    frame << 15;
+    frame += crc;
+    frame << 8;
+    frame += 1;
+    frame << 4;
+    frame += dtlen;
+    frame << 1;
+    frame += 0; // reserved bit
+    frame << 1;
+    frame += rtr;
+    frame << 1;
+    frame += ide;
+    frame << 11;
+    frame += ida;
+    frame << 1;
+    frame += sof;
     
+    return frame;
+}
+
+void Decoder::runTest(int64_t frame, int8_t frame_len) {
+    int8_t synth_rx;
+    for (int i=0; i<frame_len; i++)
+    {
+        synth_rx = frame % 2;
+        frame = frame >> 1;
+        execute(synth_rx);
+        displayStateInfo();
+    }
 
 }
 
 void Decoder::displayStateInfo() {
+    #ifdef ARDUINO
     Serial.print("State: ");
     Serial.println(this->state);
+    Serial.print(" RX: ");
+    Serial.println(this->rx);
+    #else
+    std::cout << "State: " << this->state <<std::endl;
+ 
+    #endif
+
+}
+
+void Decoder::displayFrameRead() {
+    Serial.print("Frame Read: ");
+    Serial.print("");
 
 }
 
@@ -93,6 +194,9 @@ void Decoder::execute(int8_t rx)
 
         case RTR_SRR_ST:
             this->rtr_srr = this->rx;
+
+            //transitions
+            this->next_state = IDE_ST;
 
             break;
 
@@ -158,6 +262,12 @@ void Decoder::execute(int8_t rx)
 
             break;
 
+        case STD_ST:
+
+            //transitions
+            this->next_state = DATA_LEN_ST;
+            break;
+
         case DATA_ST:
             data_count_aux -= 1;
             this->data << 1;
@@ -174,7 +284,7 @@ void Decoder::execute(int8_t rx)
             this->crc << 1;
             this->crc += this->rx;
             if (this->crc_count==0) {
-
+                this->next_state = crc-CRC_DELIM_ST;
             }
 
             break;
@@ -230,17 +340,13 @@ void Decoder::execute(int8_t rx)
             break;
         
         case INTERMISSION2_ST:
-
+            displayFrameRead();
             //transitions
             if (this->rx == 1) {
                 this->next_state = IDLE_ST;
                 this->idle = 1;
             }
             break;
-        
-        
-
-        
 
     }
 
