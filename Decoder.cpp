@@ -254,6 +254,7 @@ void Decoder::execute(int8_t rx)
             this->data_count += this->rx;
             //transitions
             if (this->rtr == 0 && this->data_len == 0) {
+                this->data_count = (this->data_count*8 - 1);
                 this->next_state = DATA_ST;
                 data_count_aux = this->data_count;
             } else if (this->rtr && this-> data_len == 0) {
