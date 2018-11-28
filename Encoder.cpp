@@ -6,7 +6,6 @@ enum states {
     ARBITRATION_STATE,
     SRR_STATE,
     RTR_STATE,
-    LOST_ARBITRATION_STATE,
     IDE_STATE,
     RESERVED_STATE,
     RESERVED_STATE_2,
@@ -17,6 +16,8 @@ enum states {
     ACK_STATE,
     ACK_DELIMITER_STATE,
     EOF_STATE,
+    LOST_ARBITRATION_STATE,
+    STUFFING_HANDLER,
     END_STATE
 };
 
@@ -64,7 +65,14 @@ int8_t Encoder::__writeBit(int8_t bit){
 }
 
 int8_t Encoder::StuffingState(){
+    #ifdef SW
+    printf("(STUFFING ");
+    #endif
+    this->state = STUFFING_HANDLER;
+
     int8_t bit = !(this->previous_bit)&1;
+    this->previous_bit = bit;
+    this->stuffing_counter = 1;
 
     return this->__writeBit(bit);
 }
@@ -73,38 +81,35 @@ int8_t Encoder::WriteBit(int8_t new_bit){
 
     if(this->stuffing_control){
         if(this->stuffing_counter == 5){
-            this->previous_bit = this->StuffingState();
-            this->stuffing_counter = 0;
+            this->StuffingState();
+            this->stuffed_bit = new_bit;
+
+            #ifdef SW
+            printf(") ");
+            #endif
 
             return -1;
         }
         else{
-            if(this->previous_bit == -1){
-                previous_bit = new_bit;
-                this->stuffing_counter = 1;
-            }
-            else if(this->previous_bit == new_bit)
+            if(this->previous_bit == new_bit)
                 this->stuffing_counter += 1;
             else if(this->previous_bit != new_bit){
                 this->stuffing_counter = 1;
                 this->previous_bit = new_bit;
             }
         }
-
     }
 
     return this->__writeBit(new_bit);
-        
 }
 
 int8_t Encoder::NextBitFromBuffer(){
-    int8_t bit = (this->write_buffer) & 0x01;
+    int8_t bit = (this->write_buffer) & 0x1;
     this->write_buffer = this->write_buffer >> 1;
     return bit;
 }
 
 int32_t Encoder::ReverseBits(int32_t num, int8_t bits_size){
-    
     int8_t count = 0;
     int32_t reverse_num = 0;
     
@@ -147,15 +152,20 @@ int8_t Encoder::Execute(
         int8_t data_size,
         int8_t data_or_remote,
         int frame_type){
+
+    uint8_t is_this_stuffed, next_bit;
+
+    if(this->state != STUFFING_HANDLER)
+        this->state = this->next_state;
     
-    switch (this->state)
+    switch(this->state)
     {
         case IDLE_STATE:
             #ifdef SW
             printf("IDLE");
             #endif
 
-            this->state = SOF_STATE;
+            this->next_state = SOF_STATE;
         break;
 
         case SOF_STATE:
@@ -209,11 +219,11 @@ int8_t Encoder::Execute(
             this->bit_counter = 1;
             this->WriteBit(0);
 
-            this->state = ARBITRATION_STATE;
+            this->next_state = ARBITRATION_STATE;
 
         break;
 
-        case ARBITRATION_STATE: //arbitration state
+        case ARBITRATION_STATE: //arbitration next_state
             #ifdef SW
             printf("ARBITRATION ");
             #endif
@@ -236,14 +246,14 @@ int8_t Encoder::Execute(
                     #endif
 
                     if(bus_status != this->stuff_wrote)
-                        this->state = LOST_ARBITRATION_STATE;
+                        this->next_state = LOST_ARBITRATION_STATE;
                     else{
                         if((this->bit_counter == 12) && (this->frame_type == STANDARD))
-                            this->state = RTR_STATE;
+                            this->next_state = RTR_STATE;
                         else if((this->bit_counter == 12) && (this->frame_type == EXTENDED))
-                            this->state = SRR_STATE;
+                            this->next_state = SRR_STATE;
                         else if((this->bit_counter == 32))
-                            this->state = RTR_STATE;
+                            this->next_state = RTR_STATE;
                     }
 
                     this->i_wrote = false;
@@ -253,11 +263,16 @@ int8_t Encoder::Execute(
                     printf("WRITING ");
                     #endif
 
-                    int8_t next_bit = this->NextBitFromBuffer();
+                    next_bit = this->NextBitFromBuffer();
 
-                    this->stuff_wrote = this->WriteBit(next_bit);
                     this->i_wrote = true;
                     this->bit_counter += 1;
+
+                    is_this_stuffed = this->WriteBit(next_bit);
+                    if(is_this_stuffed != -1)   //not stuffed
+                        this->stuff_wrote = is_this_stuffed;
+                    else
+                        goto end_automata;
                 }
             }
 
@@ -282,9 +297,9 @@ int8_t Encoder::Execute(
                 #endif
 
                 if(bus_status != this->stuff_wrote)
-                    this->state = LOST_ARBITRATION_STATE;
+                    this->next_state = LOST_ARBITRATION_STATE;
                 else
-                    this->state = IDE_STATE;
+                    this->next_state = IDE_STATE;
 
             }
             else if(!(this->i_wrote) && write_point == 1){
@@ -293,9 +308,15 @@ int8_t Encoder::Execute(
                 #endif
 
                 this->extended_payload.p.SRR = 1;
-                this->stuff_wrote = this->WriteBit(1);
+
                 this->bit_counter += 1;
                 this->i_wrote = true;
+        
+                is_this_stuffed = this->WriteBit(1);
+                if(is_this_stuffed != -1)   //not stuffed
+                    this->stuff_wrote = is_this_stuffed;
+                else
+                    goto end_automata;
             }
 
         break;
@@ -320,16 +341,16 @@ int8_t Encoder::Execute(
                 #endif
 
                 if(bus_status != this->stuff_wrote)
-                    this->state = LOST_ARBITRATION_STATE;
+                    this->next_state = LOST_ARBITRATION_STATE;
                 else{
                     if(this->frame_type == STANDARD){
                         this->standard_payload.p.RTR = data_or_remote;
-                        this->state = IDE_STATE;
+                        this->next_state = IDE_STATE;
                     }
                         
                     else if(this->frame_type == EXTENDED){
                         this->extended_payload.p.RTR = data_or_remote;
-                        this->state = RESERVED_STATE;
+                        this->next_state = RESERVED_STATE;
                     }
                 }
             }
@@ -338,8 +359,13 @@ int8_t Encoder::Execute(
                 printf("WRITING ");
                 #endif
 
-                this->stuff_wrote = this->WriteBit(data_or_remote);
                 this->i_wrote = true;
+
+                is_this_stuffed = this->WriteBit(data_or_remote);
+                if(is_this_stuffed != -1)   //not stuffed
+                    this->stuff_wrote = is_this_stuffed;
+                else
+                    goto end_automata;
             }
 
         break;
@@ -350,9 +376,14 @@ int8_t Encoder::Execute(
             #endif
 
             if(this->frame_type == STANDARD){
-                this->WriteBit(0);
                 this->standard_payload.p.IDE = 0;
-                this->state = RESERVED_STATE;
+                this->next_state = RESERVED_STATE;
+
+                is_this_stuffed = this->WriteBit(0);
+                if(is_this_stuffed != -1)   //not stuffed
+                    this->stuff_wrote = is_this_stuffed;
+                else
+                    goto end_automata;
             }
             else if(this->frame_type == EXTENDED){
                 if((this->i_wrote) && (sample_point == 1)){
@@ -370,9 +401,9 @@ int8_t Encoder::Execute(
                     #endif
 
                     if(bus_status != this->stuff_wrote)
-                        this->state = LOST_ARBITRATION_STATE;
+                        this->next_state = LOST_ARBITRATION_STATE;
                     else
-                        this->state = ARBITRATION_STATE;
+                        this->next_state = ARBITRATION_STATE;
 
                 }
                 else if(!(this->i_wrote) && write_point == 1){
@@ -381,9 +412,15 @@ int8_t Encoder::Execute(
                     #endif
 
                     this->standard_payload.p.IDE = 1;
-                    this->stuff_wrote = this->WriteBit(1);
+
                     this->bit_counter += 1;
                     this->i_wrote = true;
+
+                    is_this_stuffed = this->WriteBit(1);
+                    if(is_this_stuffed != -1)   //not stuffed
+                        this->stuff_wrote = is_this_stuffed;
+                    else
+                        goto end_automata;
                 }
             }
 
@@ -394,7 +431,6 @@ int8_t Encoder::Execute(
             printf("RESERVED ");
             #endif
 
-            this->WriteBit(0);
             this->write_byte = 0;
             this->bit_counter = 0;
             this->data_counter = 0;
@@ -403,13 +439,19 @@ int8_t Encoder::Execute(
             if(this->frame_type == EXTENDED){
                 this->extended_payload.p.RESERVED = 3;
                 this->extended_payload.p.DLC = data_size;
-                this->state = RESERVED_STATE_2;
+                this->next_state = RESERVED_STATE_2;
             }
             else if(this->frame_type == STANDARD){
                 this->standard_payload.p.RESERVED = 1;
                 this->standard_payload.p.DLC = data_size;
-                this->state = DLC_STATE;
+                this->next_state = DLC_STATE;
             }
+
+            is_this_stuffed = this->WriteBit(0);
+            if(is_this_stuffed != -1)   //not stuffed
+                this->stuff_wrote = is_this_stuffed;
+            else
+                goto end_automata;
                 
         break;
 
@@ -418,8 +460,13 @@ int8_t Encoder::Execute(
             printf("RESERVED2 ");
             #endif
 
-            this->WriteBit(0);
-            this->state = DLC_STATE;
+            this->next_state = DLC_STATE;
+
+            is_this_stuffed = this->WriteBit(0);
+            if(is_this_stuffed != -1)   //not stuffed
+                this->stuff_wrote = is_this_stuffed;
+            else
+                goto end_automata;
 
         break;
 
@@ -428,14 +475,21 @@ int8_t Encoder::Execute(
             printf("DLC ");
             #endif
 
-            this->WriteBit(this->NextBitFromBuffer());
             this->bit_counter += 1;
 
+            next_bit = this->NextBitFromBuffer();
+        
             if(this->bit_counter == 4){
                 this->bit_counter = 0;
                 this->AddToWrite(data[0], 8);
-                this->state = DATA_STATE;
+                this->next_state = DATA_STATE;
             }
+
+            is_this_stuffed = this->WriteBit(next_bit);
+            if(is_this_stuffed != -1)   //not stuffed
+                this->stuff_wrote = is_this_stuffed;
+            else
+                goto end_automata;
 
         break;
 
@@ -444,8 +498,9 @@ int8_t Encoder::Execute(
             printf("DATA ");
             #endif
 
-            this->WriteBit(this->NextBitFromBuffer());
             this->bit_counter += 1;
+
+            next_bit = this->NextBitFromBuffer();
 
             if(this->bit_counter == 8){
                 if(this->frame_type == STANDARD){
@@ -474,8 +529,14 @@ int8_t Encoder::Execute(
                 this->AddToWrite(this->frame_crc, 15);
                 this->bit_counter = 0;
 
-                this->state = CRC_STATE;
+                this->next_state = CRC_STATE;
             }
+
+            is_this_stuffed = this->WriteBit(next_bit);
+            if(is_this_stuffed != -1)   //not stuffed
+                this->stuff_wrote = is_this_stuffed;
+            else
+                goto end_automata;
 
         break;
 
@@ -484,12 +545,17 @@ int8_t Encoder::Execute(
             printf("CRC ");
             #endif
 
-            this->WriteBit(this->NextBitFromBuffer());
             this->bit_counter += 1;
+            next_bit = this->NextBitFromBuffer();
 
             if(this->bit_counter == 15)
-                this->state = CRC_DELIMITER_STATE;
+                this->next_state = CRC_DELIMITER_STATE;
 
+            is_this_stuffed = this->WriteBit(next_bit);
+            if(is_this_stuffed != -1)   //not stuffed
+                this->stuff_wrote = is_this_stuffed;
+            else
+                goto end_automata;
         break;
 
         case CRC_DELIMITER_STATE:
@@ -500,7 +566,7 @@ int8_t Encoder::Execute(
             this->WriteBit(1);
             this->stuffing_control = false;
 
-            this->state = ACK_STATE;
+            this->next_state = ACK_STATE;
 
         break;
 
@@ -511,7 +577,7 @@ int8_t Encoder::Execute(
             
             this->WriteBit(1);
 
-            this->state = ACK_DELIMITER_STATE;
+            this->next_state = ACK_DELIMITER_STATE;
 
         break;
         
@@ -523,7 +589,7 @@ int8_t Encoder::Execute(
             this->WriteBit(1);
             this->bit_counter = 0;
 
-            this->state = EOF_STATE;
+            this->next_state = EOF_STATE;
 
         break;
 
@@ -537,11 +603,11 @@ int8_t Encoder::Execute(
 
             if(this->bit_counter == 7){
                 #ifdef SW
-                if(this->state != END_STATE)
+                if(this->next_state != END_STATE)
                     printf("\n");
                 #endif
 
-                this->state = IDLE_STATE;
+                this->next_state = IDLE_STATE;
                 return 10;  //finished status
             }
         break;
@@ -554,6 +620,11 @@ int8_t Encoder::Execute(
             return 1;   //lost arbitration status
         break;
 
+        case STUFFING_HANDLER:
+            this->stuff_wrote = this->WriteBit(this->stuffed_bit);
+            this->state = this->next_state;
+        break;
+
         case END_STATE:
         break;
 
@@ -564,10 +635,14 @@ int8_t Encoder::Execute(
         break;
     }
 
-    #ifdef SW
-    if(this->state != END_STATE)
-        printf("\n");
-    #endif
-
-    return 0;
+    end_automata:
+    if(this->state == STUFFING_HANDLER)
+        return 2;
+    else{
+        #ifdef SW
+        if(this->state != END_STATE)
+            printf("\n");
+        #endif
+        return 0;
+    }
 }

@@ -24,7 +24,7 @@ int main(){
 
 
     while(true){
-        if(status != 0){
+        if((status != 0) && (status != 2)){
             printf("STATUS: %d", status);
             break;
         }
