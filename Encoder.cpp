@@ -112,24 +112,9 @@ int8_t Encoder::NextBitFromBuffer(){
     return bit;
 }
 
-int32_t Encoder::ReverseBits(int32_t num, int8_t bits_size){
-    int8_t count = 0;
-    int32_t reverse_num = 0;
-    
-    while(num){
-        reverse_num <<= 1;
-        reverse_num += num & 1;
-        num >>= 1;
-        count += 1;
-    }
-    
-    reverse_num <<= (bits_size - count);
-    return reverse_num;
-}
-
 void Encoder::AddToWrite(int32_t num, int8_t bits_size){
     this->write_buffer = 0;
-    this->write_buffer = this->ReverseBits(num, bits_size);
+    this->write_buffer = ReverseBits(num, bits_size);
 }
 
 void Encoder::ErrorFlaging(uint8_t flag){
@@ -189,8 +174,8 @@ int8_t Encoder::Execute(
 
                 this->standard_payload.p.BLANK = 0;
                 this->extended_payload.p.SOF = 0;
-                this->extended_payload.p.ID_A = this->id_a;
-                this->extended_payload.p.ID_B = this->id_b;
+                this->extended_payload.p.ID_A = ReverseBits(this->id_a, 11);
+                this->extended_payload.p.ID_B = ReverseBits(this->id_b, 18);
                 this->extended_payload.p.SRR = 1;
             }
             else if(this->frame_type == STANDARD){
@@ -198,7 +183,7 @@ int8_t Encoder::Execute(
 
                 this->standard_payload.p.BLANK = 0;
                 this->standard_payload.p.SOF = 0;
-                this->standard_payload.p.ID_A = this->id_a;
+                this->standard_payload.p.ID_A = ReverseBits(this->id_a, 11);
             }
             else{
                 this->error_status = 0x1;
@@ -437,12 +422,12 @@ int8_t Encoder::Execute(
 
             if(this->frame_type == EXTENDED){
                 this->extended_payload.p.RESERVED = 3;
-                this->extended_payload.p.DLC = data_size;
+                this->extended_payload.p.DLC = ReverseBits(data_size, 4);
                 this->next_state = RESERVED_STATE_2;
             }
             else if(this->frame_type == STANDARD){
                 this->standard_payload.p.RESERVED = 1;
-                this->standard_payload.p.DLC = data_size;
+                this->standard_payload.p.DLC = ReverseBits(data_size, 4);
                 this->next_state = DLC_STATE;
             }
 
@@ -507,10 +492,12 @@ int8_t Encoder::Execute(
 
             if(this->bit_counter == 8){
                 if(this->frame_type == STANDARD){
-                    this->standard_payload.b[this->data_counter] = data[this->data_counter];
+                    this->standard_payload.b[this->data_counter] = 
+                            ReverseBits(data[(data_size - this->data_counter - 1)], 8);
                 }
                 else if(this->frame_type ==  EXTENDED){
-                    this->extended_payload.b[this->data_counter] = data[this->data_counter];
+                    this->extended_payload.b[this->data_counter] = 
+                            ReverseBits(data[(data_size - this->data_counter - 1)], 8);
                 }
 
                 this->bit_counter = 0;
@@ -525,13 +512,13 @@ int8_t Encoder::Execute(
                     max_bytes = 3 + data_size;
                     for(int i=0; i < max_bytes; i++)
                         this->frame_crc = CrcNext(this->frame_crc,
-                                                    this->ReverseBits(this->standard_payload.b[i], 8));
+                                                    ReverseBits(this->standard_payload.b[i], 8));
                 }
                 else if(this->frame_type == EXTENDED){
                     max_bytes = 5 + data_size;
                     for(int i=0; i < max_bytes; i++)
                         this->frame_crc = CrcNext(this->frame_crc,
-                                                  this->ReverseBits(this->extended_payload.b[i], 8));
+                                                  ReverseBits(this->extended_payload.b[i], 8));
                 }
 
                 this->AddToWrite(this->frame_crc, 15);

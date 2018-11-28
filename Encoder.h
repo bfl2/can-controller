@@ -29,76 +29,74 @@ class Encoder{
 
     public:
 
-    //error flag
-    uint8_t error_flag;
+        //error flag
+        uint8_t error_flag;
 
-    Encoder(
-            int8_t pin_tx,
-            int8_t pin_rx);
+        Encoder(
+                int8_t pin_tx,
+                int8_t pin_rx);
 
-    int8_t Execute(
+        int8_t Execute(
+                int8_t sample_point, 
+                int8_t write_point,
+                int16_t id_a,
+                int32_t id_b,
+                int8_t data[8], 
+                int8_t data_size,
+                int8_t data_frame_flag,
+                int frame_type);
+
+        int8_t ExecuteError(
             int8_t sample_point, 
             int8_t write_point,
-            int16_t id_a,
-            int32_t id_b,
-            int8_t data[8], 
-            int8_t data_size,
-            int8_t data_frame_flag,
-            int frame_type);
+            bool idle);
 
-    int8_t ExecuteError(
-        int8_t sample_point, 
-        int8_t write_point,
-        bool idle);
-
-    void ErrorFlaging(uint8_t flag);
+        void ErrorFlaging(uint8_t flag);
 
     private:
 
-    int8_t StuffingState();
-    int8_t __writeBit(int8_t bit);
-    int8_t WriteBit(int8_t new_bit);
-    int8_t NextBitFromBuffer();
-    int32_t ReverseBits(int32_t num, int8_t bits_size);
-    void AddToWrite(int32_t num, int8_t bits_size);
-    void CreateCRCSeed();
+        int8_t StuffingState();
+        int8_t __writeBit(int8_t bit);
+        int8_t WriteBit(int8_t new_bit);
+        int8_t NextBitFromBuffer();
+        void AddToWrite(int32_t num, int8_t bits_size);
+        void CreateCRCSeed();
 
-    int error_status;
+        int error_status;
 
-    int8_t state;
-    int8_t next_state;
+        int8_t state;
+        int8_t next_state;
 
-    //pins
-    int8_t pin_tx;
-    int8_t pin_rx;
+        //pins
+        int8_t pin_tx;
+        int8_t pin_rx;
 
-    //controller id
-    int16_t id_a;
-    int32_t id_b;
+        //controller id
+        int16_t id_a;
+        int32_t id_b;
 
-    //frame vars
-    int32_t frame_header;
-    int32_t write_buffer;
-    int16_t frame_crc;
-    int frame_type;
+        //frame vars
+        int32_t frame_header;
+        int32_t write_buffer;
+        int16_t frame_crc;
+        int frame_type;
 
-    //contol variables
-    bool i_wrote;
-    int8_t write_byte;
-    int8_t bit_counter;
-    int8_t data_counter;
-    int8_t stuff_wrote;
-    
-    //bit stuffing control
-    bool stuffing_control;
-    int8_t previous_bit;
-    int8_t stuffed_bit;
-    int8_t stuffing_counter;
+        //contol variables
+        bool i_wrote;
+        int8_t write_byte;
+        int8_t bit_counter;
+        int8_t data_counter;
+        int8_t stuff_wrote;
+        
+        //bit stuffing control
+        bool stuffing_control;
+        int8_t previous_bit;
+        int8_t stuffed_bit;
+        int8_t stuffing_counter;
 
-    //payloads
-    
-    seed_standard standard_payload;
-    seed_extended extended_payload;
+        //payloads
+        seed_standard standard_payload;
+        seed_extended extended_payload;
 
 };
 
