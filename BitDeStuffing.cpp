@@ -29,11 +29,11 @@ BitDeStuffing::BitDeStuffing(int8_t rx, int8_t bit_stuffing_enable, int8_t sampl
 BitDeStuffing::BitDeStuffing() 
 {
     this->state = START_STATE;
+    this->next_state = START_STATE;
     this->bit_stuffing_enable = 1;
     this->last_rx = 1;
     this->count = 0;
     this->stuffing_error = 0;
-    this->state = START_STATE;
 }
 
 int8_t BitDeStuffing::getRx() {
@@ -78,7 +78,7 @@ void BitDeStuffing::printStatus()
     Serial.print(" Estado: ");
     Serial.println(this->state);
     #else
-    printf("\nenabled:%d RX: %d Sample point: %d stuffing_error: %d  Estado: %d|\n", this->bit_stuffing_enable, this->rx, this->sample_point_out, this->stuffing_error, this->state);
+    // printf("\nenabled:%d RX: %d Sample point: %d stuffing_error: %d  Estado: %d|\n", this->bit_stuffing_enable, this->rx, this->sample_point_out, this->stuffing_error, this->state);
     #endif
     
 
