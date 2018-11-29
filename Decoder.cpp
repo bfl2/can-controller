@@ -26,7 +26,7 @@ enum states  {
 
 Decoder::Decoder (){
     this->idle = 1;
-    this->state = IDLE_ST;
+    this->next_state = IDLE_ST;
 }
 
 void Decoder::initInterestBits() {
@@ -41,111 +41,8 @@ void Decoder::initInterestBits() {
     this->bit_destuffing_error = 0;
     this->crc_error = 0;
     this->ack_error = 0;
-}
-
-int64_t Decoder::build_standard_frame () {
-    // frame example: SOF0 IDA00000010100 RTR0 IDE0 RB0 DTLEN0001 DATA00000001 CRC01000011000000 CRC_D1 ACK0 ACK_DEL1 EOF1111111 111
-    
-
-    int64_t frame = 0;
-    int8_t bit_count;
-    int8_t sof = 0;
-    int16_t ida = 20;
-    int8_t rtr = 0;
-    int8_t ide = 0;
-    int8_t dtlen = 1;
-    int64_t data = 1;
-    int16_t crc = 4288;
-    int8_t eof = 127;
-    frame <<= 1;
-    frame += sof;
-    frame <<= 11;
-    frame += ida;
-    frame <<= 1;
-    frame += rtr;
-    frame <<= 1;
-    frame += ide;
-    frame <<= 1;
-    frame += 0; // reserved bit
-    frame <<= 4;
-    frame += dtlen;
-    frame <<= 8;
-    frame += 1;
-    frame <<= 15;
-    frame += crc;
-    frame <<= 1;
-    frame += 1;//crc del
-    frame <<= 1;
-    frame += 0; //ack
-    frame <<= 1;
-    frame += 1;//ack del
-    frame <<= 7;
-    frame += eof;
-    frame <<= 1;
-    frame += ide;
-    frame <<= 3;
-    frame += 7;//intermission
-    
-
-    return frame;
-}
-
-int64_t Decoder::build_standard_frame_reversed () {
-    // frame example: SOF0 IDA00000010100 RTR0 IDE0 RB0 DTLEN0001 DATA00000001 CRC01000011000000 CRC_D1 ACK0 ACK_DEL1 EOF1111111 111
-
-    int64_t frame = 0;
-    int8_t bit_count;
-    int8_t sof = 0;
-    int16_t ida = 20;
-    int8_t rtr = 0;
-    int8_t ide = 0;
-    int8_t dtlen = 1;
-    int64_t data = 1;
-    int16_t crc = 4288;
-    int8_t eof = 127;
-
-    frame <<= 3;
-    frame += 7;//intermission
-    frame <<= 1;
-    frame += ide;
-    frame <<= 7;
-    frame += eof;
-    frame <<= 1;
-    frame += 1;//ack del
-    frame <<= 1;
-    frame += 0; //ack
-    frame <<= 1;
-    frame += 1;//crc del
-    frame <<= 15;
-    frame += crc;
-    frame <<= 8;
-    frame += 1;
-    frame <<= 4;
-    frame += dtlen;
-    frame <<= 1;
-    frame += 0; // reserved bit
-    frame <<= 1;
-    frame += rtr;
-    frame <<= 1;
-    frame += ide;
-    frame <<= 11;
-    frame += ida;
-    frame <<= 1;
-    frame += sof;
-    
-    return frame;
-}
-
-void Decoder::runTest(int64_t frame, int8_t frame_len) {
-    int8_t synth_rx;
-    for (int i=0; i<frame_len; i++)
-    {
-        synth_rx = frame % 2;
-        frame = frame >> 1;
-        execute(synth_rx);
-        displayStateInfo();
-    }
-
+    this->stuff_error = 0;
+    this->crc_delim_error = 0;
 }
 
 void Decoder::displayStateInfo() {
@@ -157,7 +54,6 @@ void Decoder::displayStateInfo() {
     #else
     printf("State: \n");
     #endif
-
 }
 
 void Decoder::displayFrameRead() {
@@ -167,11 +63,6 @@ void Decoder::displayFrameRead() {
     #else
     printf("Frame Read: %d %d %d %d %ld\n", this->ida, this->rtr, this->ide, this->dlc, this->data);
     #endif
-
-}
-
-void Decoder::displayVariables(){
-
 }
 
 void Decoder::execute(int8_t rx, int8_t sample_point, int8_t bit_destuffing_error) {
@@ -184,6 +75,16 @@ void Decoder::execute(int8_t rx, int8_t sample_point, int8_t bit_destuffing_erro
 void Decoder::execute(int8_t rx) 
 { 
     this->rx = rx;
+    if((this->stuff_error == 1)
+        && (this->state != ERROR_FLAG_ST) 
+        && (this->state != ERROR_SUPERPOSITION_ST) 
+        && (this->state != ERROR_DELIMITER_ST))
+    {
+        this->next_state = ERROR_FLAG_ST;
+    }
+
+    this->state = this->next_state;
+
     switch (this->state) {
         case IDLE_ST:
             #ifndef ARDUINO
@@ -195,7 +96,7 @@ void Decoder::execute(int8_t rx)
             if (this->rx == 0)
                 this->next_state = IDA_ST;
                 this->idle = 0;
-            break;
+        break;
 
         case IDA_ST:
             #ifndef ARDUINO
@@ -212,8 +113,7 @@ void Decoder::execute(int8_t rx)
                 this->next_state = RTR_SRR_ST;
             }
             //verify if count_ida  does not exceed 11 bits 
-
-            break;
+        break;
 
         case RTR_SRR_ST:
             #ifndef ARDUINO
@@ -223,8 +123,7 @@ void Decoder::execute(int8_t rx)
 
             //transitions
             this->next_state = IDE_ST;
-
-            break;
+        break;
 
         case IDE_ST:
             #ifndef ARDUINO
@@ -239,9 +138,8 @@ void Decoder::execute(int8_t rx)
 
             } else {
                 this->next_state = STD_ST;
-            }
-           
-            break;
+            } 
+        break;
 
         case EXT_ST:
             #ifndef ARDUINO
@@ -257,8 +155,7 @@ void Decoder::execute(int8_t rx)
                 this->next_state = RTR_ST;
             }
             //verify if count_ida  does not exceed 18 bits 
-
-            break;
+        break;
 
         case RTR_ST:
             #ifndef ARDUINO
@@ -271,8 +168,7 @@ void Decoder::execute(int8_t rx)
             //transitions
             this->next_state = READ_RESERVED_BITS_ST;
             this->count_reserved = 2;
-
-            break;
+        break;
 
         case READ_RESERVED_BITS_ST:
             #ifndef ARDUINO
@@ -292,8 +188,7 @@ void Decoder::execute(int8_t rx)
                 this->data_count = 0;
                 this->next_state = DATA_LEN_ST;
             }
-            
-            break;
+        break;
         
         case DATA_LEN_ST:
             #ifndef ARDUINO
@@ -311,8 +206,7 @@ void Decoder::execute(int8_t rx)
             } else if ((this->rtr == 1) && (this->data_len == 0)) {
                 this->next_state = CRC_ST;
             }
-
-            break;
+        break;
 
         case STD_ST:
             #ifndef ARDUINO
@@ -324,7 +218,7 @@ void Decoder::execute(int8_t rx)
 
             //transitions
             this->next_state = DATA_LEN_ST;
-            break;
+        break;
 
         case DATA_ST:
             #ifndef ARDUINO
@@ -396,7 +290,7 @@ void Decoder::execute(int8_t rx)
                 this->next_state = CRC_ST;
             }
 
-            break;
+        break;
 
         case CRC_ST:
             #ifndef ARDUINO
@@ -410,30 +304,31 @@ void Decoder::execute(int8_t rx)
                 if((this->crc - this->computed_crc) != 0){
                     this->crc_error = 1;
                     this->error_count = 5;
-                    this->next_state = ERROR_FLAG_ST;
                 }
-                else
-                    this->next_state = CRC_DELIM_ST;
+    
+                this->next_state = CRC_DELIM_ST;
             }
 
-            break;
+        break;
 
         case CRC_DELIM_ST:
             #ifndef ARDUINO
             printf("CRC DELIM\n");
             #endif
             this->bit_stuffing_enable = 0;
+            this->crc_delim_error = 0;
             //transitions
             if (this->rx == 0) {
                 this->crc_delim_error = 1;
                 this->error_count = 5;
                 this->next_state = ERROR_FLAG_ST;
-
+            } else if(this->crc_error == 1){
+                this->next_state = ERROR_FLAG_ST;
             } else {
                 this->next_state = ACK_SLOT_ST;
             }
 
-            break;
+        break;
         
         case ACK_SLOT_ST:
             #ifndef ARDUINO
@@ -443,7 +338,7 @@ void Decoder::execute(int8_t rx)
             //transitions
             this->next_state = ACK_DELIM_ST;
 
-            break;
+        break;
 
         case ACK_DELIM_ST:
             #ifndef ARDUINO
@@ -458,8 +353,8 @@ void Decoder::execute(int8_t rx)
                 this->ack_error = 1;
             }
 
-            break;
-        
+        break;
+    
         case EOF_ST:
             #ifndef ARDUINO
             printf("EOF %d \n", this->eof_count);
@@ -472,7 +367,7 @@ void Decoder::execute(int8_t rx)
                 this->next_state = INTERMISSION1_ST;
             }
 
-            break;
+        break;
 
         case INTERMISSION1_ST:
             #ifndef ARDUINO
@@ -484,7 +379,7 @@ void Decoder::execute(int8_t rx)
                 this->next_state = INTERMISSION2_ST;
             }
 
-            break;
+        break;
         
         case INTERMISSION2_ST:
             #ifndef ARDUINO
@@ -495,19 +390,19 @@ void Decoder::execute(int8_t rx)
                 this->next_state = IDLE_ST;
                 this->idle = 1;
             }
-            break;
+        break;
 
         case ERROR_FLAG_ST:
             #ifndef ARDUINO
-            printf("ERROR FLAG\n");
+            printf("ERROR FLAG {ack_error:%d, crc_delim_error:%d, crc_error:%d, stuff_error:%d}\n", 
+                        this->ack_error, this->crc_delim_error, this->crc_error, this->stuff_error);
             #endif
             this->error_count -= 1;
             //transitions
             if( this->error_count ==0 ) {
                 this->next_state = ERROR_SUPERPOSITION_ST;
             }
-
-            break;
+        break;
 
         case ERROR_SUPERPOSITION_ST:
             #ifndef ARDUINO
@@ -516,19 +411,15 @@ void Decoder::execute(int8_t rx)
             if ( this->rx == 1 ) {
                 this->next_state = ERROR_DELIMITER_ST;
             }
+        break;
 
-            break;
          case ERROR_DELIMITER_ST:
             #ifndef ARDUINO
             printf("ERROR_DELIMITER\n");
             #endif
             this->idle = 1;
             this->next_state = IDLE_ST;
-            break;
-
-
+        break;
     }
-
-    this->state = this->next_state;
     this->last_rx = rx;
 }

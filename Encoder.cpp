@@ -127,6 +127,7 @@ void Encoder::ErrorFlaging(uint8_t flag){
         this->next_state = PASSIVE_ERROR_FLAG;
     else if(this->error_flag == NON_ERROR_FLAG)
         this->next_state = SOF_STATE;
+        
 }
 
 int8_t Encoder::Execute(
@@ -691,6 +692,7 @@ int8_t Encoder::ExecuteError(
     int8_t write_point,
     bool idle){
 
+    int8_t status = 0;
     this->state = this->next_state;
     this->stuffing_control = false;
 
@@ -698,7 +700,7 @@ int8_t Encoder::ExecuteError(
 
         case ACTIVE_ERROR_STATE:
             #ifdef SW
-            printf("ACTIVE ERROR ");
+            printf("ACTIVE ERROR %d ", bit_counter);
             #endif
 
             this->WriteBit(1);
@@ -712,7 +714,7 @@ int8_t Encoder::ExecuteError(
 
         case PASSIVE_ERROR_STATE:
             #ifdef SW
-            printf("PASSIVE ERROR ");
+            printf("PASSIVE ERROR %d ", bit_counter);
             #endif
             
             this->WriteBit(0);
@@ -722,12 +724,11 @@ int8_t Encoder::ExecuteError(
                 this->bit_counter = 0;
                 this->next_state = ERROR_DELIMITER_STATE;
             }
-
         break;
 
         case ERROR_DELIMITER_STATE:
             #ifdef SW
-            printf("ERROR DELIMITER ");
+            printf("ERROR DELIMITER %d ", bit_counter);
             #endif
 
             this->WriteBit(0);
@@ -736,6 +737,7 @@ int8_t Encoder::ExecuteError(
             if(this->bit_counter == 8){
                 this->bit_counter = 0;
                 this->ErrorFlaging(NON_ERROR_FLAG);
+                status = 10;
             }
 
         break;
@@ -746,5 +748,5 @@ int8_t Encoder::ExecuteError(
         printf("\n");
     #endif
 
-    return 0;
+    return status;
 }
