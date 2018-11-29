@@ -51,8 +51,7 @@ union seed_extended{
     char b[13];
 };
 
-uint16_t CrcNext(uint16_t crc, uint8_t data, int8_t skip);
-uint16_t calculateCRC(uint16_t crc, uint8_t bit);
-int32_t ReverseBits(int32_t num, int8_t bits_size);
+uint16_t CrcNext(uint16_t crc, uint8_t data);
+uint32_t ReverseBits(int32_t num, int8_t bits_size);
 
 #endif

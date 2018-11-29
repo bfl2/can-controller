@@ -35,8 +35,8 @@ class Decoder {
         int32_t idb; //extended identifier
         int64_t data;
         int16_t data_count;
-        int16_t crc;
-        int16_t computed_crc;
+        uint16_t crc;
+        uint16_t computed_crc;
         int8_t ack;
         int8_t idle;
         int8_t bit_stuffing_enable;

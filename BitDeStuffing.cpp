@@ -78,7 +78,7 @@ void BitDeStuffing::printStatus()
     Serial.print(" Estado: ");
     Serial.println(this->state);
     #else
-    printf(" enabled:%d RX: %d Sample point: %d stuffing_error: %d  Estado: %d|\n", this->bit_stuffing_enable, this->rx, this->sample_point_out, this->stuffing_error, this->state);
+    printf("\nenabled:%d RX: %d Sample point: %d stuffing_error: %d  Estado: %d|\n", this->bit_stuffing_enable, this->rx, this->sample_point_out, this->stuffing_error, this->state);
     #endif
     
 

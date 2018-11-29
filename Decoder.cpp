@@ -165,7 +165,7 @@ void Decoder::displayFrameRead() {
     Serial.print("Frame Read: ");
     Serial.print("");
     #else
-    printf("Frame Read: %d %d %d %d %ld", this->ida, this->rtr, this->ide, this->dlc, this->data);
+    printf("Frame Read: %d %d %d %d %ld\n", this->ida, this->rtr, this->ide, this->dlc, this->data);
     #endif
 
 }
@@ -373,50 +373,26 @@ void Decoder::execute(int8_t rx)
                 }
 
                 if(this->ide == 0x0){
-                    skip = 5;
                     max_bytes = 3 + this->dlc;
-
-                    printf("DATA(%d): ", max_bytes);
 
                     for(int i=0; i < max_bytes; i++)
                     {
                         data_aux = ReverseBits(this->standard_payload.b[i]&0xff, 8);
-                        printf("%02X ", data_aux);                        
-
-                        if(i != 0)
-                            skip = 0;
-
-                        this->computed_crc = CrcNext(this->computed_crc, data_aux, skip);
+                        this->computed_crc = CrcNext(this->computed_crc, data_aux);
                     }
-                    printf("\n");
                 }
                 else if(this->ide == 0x1){
-                    skip = 1;
                     max_bytes = 5 + this->dlc;
                     for(int i=max_bytes; i > 0; i--)
                     {
-                        if(i != 0)
-                            skip = 0;
 
                         data_aux = ReverseBits(this->extended_payload.b[i]&0xff, 8);
-                        this->computed_crc = CrcNext(this->computed_crc, data_aux, skip);
+                        this->computed_crc = CrcNext(this->computed_crc, data_aux);
                     }
                 }
 
-                printf("CRC: ");
-                uint8_t crc_aux = this->computed_crc;
-                int n;
-
-                for(int i=0; i < 15; i++){
-                    n = crc_aux&0x1;
-                    crc_aux >>= 1;
-                    
-                    printf("%d", n);
-                }
-
-                printf("\n");
-
                 this->crc_count = 15;
+                this->crc = 0;
                 this->next_state = CRC_ST;
             }
 
@@ -431,7 +407,7 @@ void Decoder::execute(int8_t rx)
             this->crc += this->rx;
 
             if (this->crc_count==0) {
-                if(this->crc != this->computed_crc){
+                if((this->crc - this->computed_crc) != 0){
                     this->crc_error = 1;
                     this->error_count = 5;
                     this->next_state = ERROR_FLAG_ST;
@@ -471,7 +447,7 @@ void Decoder::execute(int8_t rx)
 
         case ACK_DELIM_ST:
             #ifndef ARDUINO
-            printf("ACL DELIM\n");
+            printf("ACK DELIM\n");
             #endif
             //transitions
             if (this->rx == 1) {
