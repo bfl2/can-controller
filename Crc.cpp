@@ -7,7 +7,7 @@ uint16_t CrcNext(uint16_t crc, uint8_t data, int8_t skip)
     unsigned int i = (8-skip);
     uint8_t bit;
 
-    printf("i:%d\n", i);
+    printf("i : %d\n", i);
     printf("before: %x\n", data);
 
     data <<= skip;

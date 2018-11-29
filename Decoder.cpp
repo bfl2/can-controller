@@ -432,7 +432,6 @@ void Decoder::execute(int8_t rx)
 
             if (this->crc_count==0) {
                 if(this->crc != this->computed_crc){
-                    printf("TESTE\n");
                     this->crc_error = 1;
                     this->error_count = 5;
                     this->next_state = ERROR_FLAG_ST;
@@ -449,7 +448,7 @@ void Decoder::execute(int8_t rx)
             #endif
             this->bit_stuffing_enable = 0;
             //transitions
-            if (this->rx == 1) {
+            if (this->rx == 0) {
                 this->crc_delim_error = 1;
                 this->error_count = 5;
                 this->next_state = ERROR_FLAG_ST;
@@ -487,9 +486,10 @@ void Decoder::execute(int8_t rx)
         
         case EOF_ST:
             #ifndef ARDUINO
-            printf("EOF\n");
+            printf("EOF %d \n", this->eof_count);
             #endif
             this->eof_count += 1;
+            displayFrameRead();
             
             //transitions
             if (this->eof_count == 7) {
@@ -514,7 +514,6 @@ void Decoder::execute(int8_t rx)
             #ifndef ARDUINO
             printf("INTERMISSION2\n");
             #endif
-            displayFrameRead();
             //transitions
             if (this->rx == 1) {
                 this->next_state = IDLE_ST;

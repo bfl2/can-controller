@@ -3,6 +3,7 @@
 
 //#include <Arduino.h>
 #include<stdint.h>
+#include <stdio.h>
 
 
 class BitDeStuffing {
