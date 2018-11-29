@@ -19,6 +19,8 @@ class BitDeStuffing {
     void runTest(); 
     void execute(int8_t rx, int8_t bit_stuffing_enable, int8_t sample_point_in);
 
+    int8_t error_fixed;
+
    
     private:
 

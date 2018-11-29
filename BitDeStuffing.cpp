@@ -95,6 +95,7 @@ void BitDeStuffing::execute(int8_t rx, int8_t bit_stuffing_enable, int8_t sample
         case START_STATE:
             isStart = true;
             this->sample_point_out = this->sample_point_in;
+            this->error_fixed = 0;
             this->count = 0;
             //STATE TRANSITIONS
             if (bit_stuffing_enable == 1) {
@@ -196,7 +197,7 @@ void BitDeStuffing::execute(int8_t rx, int8_t bit_stuffing_enable, int8_t sample
 
             this->count += 1;
             //STATE TRANSITIONS
-             if (this->bit_stuffing_enable == 1) 
+            if (this->bit_stuffing_enable == 1) 
             {
                 if (this->rx == 1) 
                 {
@@ -213,12 +214,13 @@ void BitDeStuffing::execute(int8_t rx, int8_t bit_stuffing_enable, int8_t sample
             break;
 
         case ERROR_STATE:
-            if (this->bit_stuffing_enable == 1) 
-            {
-                this->stuffing_error = 1;
-            }
+            this->stuffing_error = 1;
             //STATE TRANSITIONS
-            this->next_state = RESTART_STATE;
+            if(this->error_fixed == 1){
+                this->error_fixed = 0;
+                this->next_state = RESTART_STATE;
+            }
+                
            
             break;
     }
