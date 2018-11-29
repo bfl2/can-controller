@@ -31,6 +31,7 @@ BitDeStuffing::BitDeStuffing()
     this->last_rx = 1;
     this->count = 0;
     this->stuffing_error = 0;
+    this->state = START_STATE;
 }
 
 int8_t BitDeStuffing::getRx() {

@@ -506,19 +506,31 @@ int8_t Encoder::Execute(
             }
             if(this->data_counter == data_size){
                 int max_bytes;
+                int skip;
                 this->frame_crc = 0;
+                uint8_t data_aux;
 
                 if(this->frame_type == STANDARD){
+                    skip = 5;
                     max_bytes = 3 + data_size;
-                    for(int i=0; i < max_bytes; i++)
-                        this->frame_crc = CrcNext(this->frame_crc,
-                                                    ReverseBits(this->standard_payload.b[i] & 0xff, 8));
+                    for(int i=0; i < max_bytes; i++){
+                        if(i != 0)
+                            skip = 0;
+
+                        data_aux = ReverseBits(this->standard_payload.b[i]&0xff, 8);
+                        this->frame_crc = CrcNext(this->frame_crc, data_aux, skip);
+                    }
                 }
                 else if(this->frame_type == EXTENDED){
+                    skip = 1;
                     max_bytes = 5 + data_size;
-                    for(int i=0; i < max_bytes; i++)
-                        this->frame_crc = CrcNext(this->frame_crc,
-                                                  ReverseBits(this->standard_payload.b[i] & 0xff, 8));
+                    for(int i=0; i < max_bytes; i++){
+                        if(i != 0)
+                            skip = 0;
+
+                        data_aux = ReverseBits(this->extended_payload.b[i]&0xff, 8);
+                        this->frame_crc = CrcNext(this->frame_crc, data_aux, skip);
+                    }
                 }
 
                 this->AddToWrite(this->frame_crc, 15);

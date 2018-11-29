@@ -208,6 +208,7 @@ void Decoder::execute(int8_t rx)
             //transitions
             if (this->count_ida == 11) 
             {
+                printf("IDA: 0x%04X\n", this->ida);
                 this->next_state = RTR_SRR_ST;
             }
             //verify if count_ida  does not exceed 11 bits 
@@ -356,41 +357,49 @@ void Decoder::execute(int8_t rx)
                     this->extended_payload.p.RTR = this->rtr;
                 }
 
-
                 int64_t data_aux = this->data;
                 this->computed_crc = 0;
                 int16_t data_byte;
                 int8_t max_bytes;
+                int8_t skip;
 
                 for(int i=0; i < this->dlc; i++){
                     data_byte = (data_aux & 0xFF);
                     if(this->ide == 0x0)
-                        standard_payload.b[3+(this->dlc - i - 1)] = data_byte;
+                        standard_payload.b[3+(this->dlc - i - 1)] = ReverseBits(data_byte, 8);
                     else if(this->ide == 0x1)
                         extended_payload.b[5+(this->dlc - i - 1)] = data_byte;
                     data_aux >>= 8;
                 }
 
                 if(this->ide == 0x0){
+                    skip = 5;
                     max_bytes = 3 + this->dlc;
 
                     printf("DATA(%d): ", max_bytes);
 
                     for(int i=0; i < max_bytes; i++)
                     {
-                        printf("%X", this->standard_payload.b[i] & 0xff);
-                        // printf("%02x\n", (this->standard_payload.b[i]&0xff));
-                        this->computed_crc = CrcNext(this->computed_crc,
-                                                    this->standard_payload.b[max_bytes - i] & 0xff);
+                        data_aux = ReverseBits(this->standard_payload.b[i]&0xff, 8);
+                        printf("%02X ", data_aux);                        
+
+                        if(i != 0)
+                            skip = 0;
+
+                        this->computed_crc = CrcNext(this->computed_crc, data_aux, skip);
                     }
                     printf("\n");
                 }
                 else if(this->ide == 0x1){
+                    skip = 1;
                     max_bytes = 5 + this->dlc;
                     for(int i=max_bytes; i > 0; i--)
                     {
-                        this->computed_crc = CrcNext(this->computed_crc,
-                                                  this->extended_payload.b[max_bytes - i] & 0xff);
+                        if(i != 0)
+                            skip = 0;
+
+                        data_aux = ReverseBits(this->extended_payload.b[i]&0xff, 8);
+                        this->computed_crc = CrcNext(this->computed_crc, data_aux, skip);
                     }
                 }
 
