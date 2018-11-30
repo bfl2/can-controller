@@ -112,7 +112,9 @@ void Decoder::execute(int8_t rx)
             //transitions
             if (this->count_ida == 11) 
             {
+                #ifndef ARDUINO
                 printf("IDA: 0x%04X\n", this->ida);
+                #endif
                 this->next_state = RTR_SRR_ST;
             }
             //verify if count_ida  does not exceed 11 bits 
@@ -155,6 +157,9 @@ void Decoder::execute(int8_t rx)
              //transitions
             if (this->count_idb == 18) 
             {
+                #ifndef ARDUINO
+                printf("IDB: 0x%05X\n", this->idb);
+                #endif
                 this->next_state = RTR_ST;
             }
             //verify if count_ida  does not exceed 18 bits 
@@ -234,24 +239,24 @@ void Decoder::execute(int8_t rx)
             //transitions
             if ( this->data_count_aux == 0 ) {
                 if(this->ide == 0x0){    //standard
-                    this->standard_payload.p.BLANK=0;
-                    this->standard_payload.p.SOF = 0;
-                    this->standard_payload.p.ID_A = ReverseBits(this->ida, 11);
-                    this->standard_payload.p.RESERVED = this->reserved;
-                    this->standard_payload.p.DLC = ReverseBits(this->dlc, 4);
-                    this->standard_payload.p.IDE = this->ide;
-                    this->standard_payload.p.RTR = this->rtr;
+                    this->standard_payload.p.h.BLANK=0;
+                    this->standard_payload.p.h.SOF = 0;
+                    this->standard_payload.p.h.ID_A = ReverseBits(this->ida, 11);
+                    this->standard_payload.p.h.RESERVED = this->reserved;
+                    this->standard_payload.p.h.DLC = ReverseBits(this->dlc, 4);
+                    this->standard_payload.p.h.IDE = this->ide;
+                    this->standard_payload.p.h.RTR = this->rtr;
                 }
                 else if(this->ide == 0x1){ //extended
-                    this->extended_payload.p.BLANK = 0;
-                    this->extended_payload.p.SOF = 0;
-                    this->extended_payload.p.ID_A = ReverseBits(this->ida, 11);
-                    this->extended_payload.p.ID_B = ReverseBits(this->idb, 18);
-                    this->extended_payload.p.SRR = this->rtr_srr;
-                    this->extended_payload.p.RESERVED = ReverseBits(this->reserved, 2);
-                    this->extended_payload.p.DLC = ReverseBits(this->dlc, 4);
-                    this->extended_payload.p.IDE = this->ide;
-                    this->extended_payload.p.RTR = this->rtr;
+                    this->extended_payload.p.h.BLANK = 0;
+                    this->extended_payload.p.h.SOF = 0;
+                    this->extended_payload.p.h.ID_A = ReverseBits(this->ida, 11);
+                    this->extended_payload.p.h.ID_B = ReverseBits(this->idb, 18);
+                    this->extended_payload.p.h.SRR = this->rtr_srr;
+                    this->extended_payload.p.h.RESERVED = ReverseBits(this->reserved, 2);
+                    this->extended_payload.p.h.DLC = ReverseBits(this->dlc, 4);
+                    this->extended_payload.p.h.IDE = this->ide;
+                    this->extended_payload.p.h.RTR = this->rtr;
                 }
 
                 int64_t data_aux = this->data;
@@ -263,9 +268,9 @@ void Decoder::execute(int8_t rx)
                 for(int i=0; i < this->dlc; i++){
                     data_byte = (data_aux & 0xFF);
                     if(this->ide == 0x0)
-                        standard_payload.b[3+(this->dlc - i - 1)] = ReverseBits(data_byte, 8);
+                        this->standard_payload.b[3+(this->dlc - i - 1)] = ReverseBits(data_byte, 8);
                     else if(this->ide == 0x1)
-                        extended_payload.b[5+(this->dlc - i - 1)] = ReverseBits(data_byte, 8);
+                        this->extended_payload.b[5+(this->dlc - i - 1)] = ReverseBits(data_byte, 8);
                     data_aux >>= 8;
                 }
 
@@ -291,7 +296,6 @@ void Decoder::execute(int8_t rx)
                     #endif
                 }
                 else if(this->ide == 0x1){
-                    printf("here:::%06X\n\n", this->extended_payload.p.ID_B);
                     max_bytes = 5 + this->dlc;
                     for(int i=0; i < max_bytes; i++)
                     {
@@ -299,7 +303,7 @@ void Decoder::execute(int8_t rx)
                         this->computed_crc = CrcNext(this->computed_crc, data_byte);
 
                         #ifndef ARDUINO
-                        // if(i > 4)
+                        if(i > 4)
                             printf(" %02X", data_byte);
                         #endif
                     }

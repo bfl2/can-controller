@@ -190,18 +190,18 @@ int8_t Encoder::Execute(
                 this->frame_header <<= 18;
                 this->frame_header += id_b;
 
-                this->standard_payload.p.BLANK = 0;
-                this->extended_payload.p.SOF = 0;
-                this->extended_payload.p.ID_A = ReverseBits(this->id_a, 11);
-                this->extended_payload.p.ID_B = ReverseBits(this->id_b, 18);
-                this->extended_payload.p.SRR = 1;
+                this->standard_payload.p.h.BLANK = 0;
+                this->extended_payload.p.h.SOF = 0;
+                this->extended_payload.p.h.ID_A = ReverseBits(this->id_a, 11);
+                this->extended_payload.p.h.ID_B = ReverseBits(this->id_b, 18);
+                this->extended_payload.p.h.SRR = 1;
             }
             else if(this->frame_type == STANDARD){
                 this->frame_header += id_a;
 
-                this->standard_payload.p.BLANK = 0;
-                this->standard_payload.p.SOF = 0;
-                this->standard_payload.p.ID_A = ReverseBits(this->id_a, 11);
+                this->standard_payload.p.h.BLANK = 0;
+                this->standard_payload.p.h.SOF = 0;
+                this->standard_payload.p.h.ID_A = ReverseBits(this->id_a, 11);
             }
             else{
                 this->error_status = 0x1;
@@ -304,7 +304,7 @@ int8_t Encoder::Execute(
                 printf("WRITING ");
                 #endif
 
-                this->extended_payload.p.SRR = 1;
+                this->extended_payload.p.h.SRR = 1;
 
                 this->bit_counter += 1;
                 this->i_wrote = true;
@@ -344,12 +344,12 @@ int8_t Encoder::Execute(
                     this->next_state = LOST_ARBITRATION_STATE;
                 else{
                     if(this->frame_type == STANDARD){
-                        this->standard_payload.p.RTR = data_frame_flag;
+                        this->standard_payload.p.h.RTR = data_frame_flag;
                         this->next_state = IDE_STATE;
                     }
                         
                     else if(this->frame_type == EXTENDED){
-                        this->extended_payload.p.RTR = data_frame_flag;
+                        this->extended_payload.p.h.RTR = data_frame_flag;
                         this->next_state = RESERVED_STATE;
                     }
                 }
@@ -376,7 +376,7 @@ int8_t Encoder::Execute(
             #endif
 
             if(this->frame_type == STANDARD){
-                this->standard_payload.p.IDE = 0;
+                this->standard_payload.p.h.IDE = 0;
                 this->next_state = RESERVED_STATE;
 
                 is_this_stuffed = this->WriteBit(0);
@@ -414,7 +414,7 @@ int8_t Encoder::Execute(
                     printf("WRITING ");
                     #endif
 
-                    this->standard_payload.p.IDE = 1;
+                    this->standard_payload.p.h.IDE = 1;
 
                     this->bit_counter += 1;
                     this->i_wrote = true;
@@ -440,13 +440,13 @@ int8_t Encoder::Execute(
             this->AddToWrite(data_size, 4);
 
             if(this->frame_type == EXTENDED){
-                this->extended_payload.p.RESERVED = 3;
-                this->extended_payload.p.DLC = ReverseBits(data_size, 4);
+                this->extended_payload.p.h.RESERVED = 3;
+                this->extended_payload.p.h.DLC = ReverseBits(data_size, 4);
                 this->next_state = RESERVED_STATE_2;
             }
             else if(this->frame_type == STANDARD){
-                this->standard_payload.p.RESERVED = 1;
-                this->standard_payload.p.DLC = ReverseBits(data_size, 4);
+                this->standard_payload.p.h.RESERVED = 1;
+                this->standard_payload.p.h.DLC = ReverseBits(data_size, 4);
                 this->next_state = DLC_STATE;
             }
 
