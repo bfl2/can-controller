@@ -61,8 +61,6 @@ void Decoder::displayFrameRead() {
     #ifdef ARDUINO
     Serial.print("Frame Read: ");
     Serial.print("");
-    #else
-    printf("Frame Read: %d %d %d %d %ld\n", this->ida, this->rtr, this->ide, this->dlc, this->data);
     #endif
 }
 

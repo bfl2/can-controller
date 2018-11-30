@@ -39,7 +39,7 @@ int main(){
 
     int stuff_error_frame[] = {0,1,1,0,0,1,1,1,0,0,1,0,0,0,0,1,0,0,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,-1};
 
-    int stuff_frame[] = {0,0,0,0,0,0,0,0,0,0,-1};
+    int simple_stuff_error[] = {0,0,0,0,0,1,1,1,1,1,1,-1};
 
     int8_t sample_point = 0;
     // int standard_frame[] = {0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,1,0,0,0,0,1,1,0,0,0,0,0,0,1,0,1,1,1,1,1,1,1,1,1,1,1,1-1};
@@ -47,31 +47,23 @@ int main(){
 
     int i = 0;
     while(true){
-        int can_bit = stuff_frame[i];
+        int can_bit = standard_frame4[i];
         if(can_bit == -1)
             break;
         i++;
-
         bde.execute(can_bit, d.bit_stuffing_enable, 1);
         sample_point = bde.getSamplePoint();
-
-        if(sample_point == 1){
-            printf("%d ", can_bit);
-            d.execute(can_bit);
-        }
 
         if(
             ((bde.getStuffingErrorFlag() == 1)
             || d.crc_error)
             && error_fixed)
         {
-            //printf("here\n");
             e.ErrorFlaging(ACTIVE_ERROR_FLAG);
             error_fixed = false;
             no_errors = false;
             if(bde.getStuffingErrorFlag() == 1)
                 d.stuff_error = 1;
-                
         }
 
         if(!error_fixed){
@@ -86,7 +78,13 @@ int main(){
                 no_errors = true;
             }
         }
-            
+
+        if(sample_point == 1){
+            #ifndef ARDUINO
+            printf("%d ", can_bit);
+            #endif
+            d.execute(can_bit);
+        }   
     }
     return 0;
 }
