@@ -106,6 +106,21 @@ int8_t Encoder::WriteBit(int8_t new_bit){
     return this->__writeBit(new_bit);
 }
 
+void Encoder::BitErrorCheck () {
+     #ifdef SW
+    int bus_status = this->stuff_wrote;
+    if(bus_status != this->stuff_wrote && this->state > ARBITRATION_STATE) {
+        this->error_flag = BIT_ERROR_FLAG;
+    }
+    #endif
+    #ifdef ARDUINO
+    int bus_status = digitalRead(this->pin_rx);
+    if(bus_status != digitalRead(this->pin_tx) && this->state > ARBITRATION_STATE) {
+        this->error_flag = BIT_ERROR_FLAG;
+    }
+    #endif
+}
+
 int8_t Encoder::NextBitFromBuffer(){
     int8_t bit = (this->write_buffer) & 0x1;
     this->write_buffer = this->write_buffer >> 1;
@@ -300,6 +315,7 @@ int8_t Encoder::Execute(
                 else
                     goto end_automata;
             }
+            BitErrorCheck();
 
         break;
 
@@ -351,7 +367,7 @@ int8_t Encoder::Execute(
                 else
                     goto end_automata;
             }
-
+            BitErrorCheck();
         break;
         
         case IDE_STATE:
@@ -410,7 +426,7 @@ int8_t Encoder::Execute(
                         goto end_automata;
                 }
             }
-
+            BitErrorCheck();
         break;
 
         case RESERVED_STATE:
@@ -454,7 +470,8 @@ int8_t Encoder::Execute(
                 this->stuff_wrote = is_this_stuffed;
             else
                 goto end_automata;
-
+            BitErrorCheck();
+            
         break;
 
         case DLC_STATE:
@@ -481,6 +498,7 @@ int8_t Encoder::Execute(
                 this->stuff_wrote = is_this_stuffed;
             else
                 goto end_automata;
+            BitErrorCheck();
 
         break;
 
@@ -541,7 +559,7 @@ int8_t Encoder::Execute(
                 this->stuff_wrote = is_this_stuffed;
             else
                 goto end_automata;
-
+            BitErrorCheck();
         break;
 
         case CRC_STATE:
@@ -560,7 +578,8 @@ int8_t Encoder::Execute(
                 this->stuff_wrote = is_this_stuffed;
             else
                 goto end_automata;
-
+        
+            BitErrorCheck();
         break;
 
         case CRC_DELIMITER_STATE:
@@ -617,6 +636,7 @@ int8_t Encoder::Execute(
 
                 this->WriteBit(1);
             }
+            BitErrorCheck();
 
         break;
         
@@ -629,6 +649,7 @@ int8_t Encoder::Execute(
             this->bit_counter = 0;
 
             this->next_state = EOF_STATE;
+            BitErrorCheck();
 
         break;
 
@@ -649,7 +670,7 @@ int8_t Encoder::Execute(
                 this->next_state = SOF_STATE;
                 return 10;  //finished status
             }
-
+            BitErrorCheck();
         break;
 
         case LOST_ARBITRATION_STATE:
@@ -658,13 +679,14 @@ int8_t Encoder::Execute(
             #endif
 
             return 1;   //lost arbitration status
-
+            BitErrorCheck();
         break;
 
         case STUFFING_HANDLER:
             this->stuff_wrote = this->WriteBit(this->stuffed_bit);
 
             this->state = this->next_state;
+            BitErrorCheck();
         break;
 
         default:
@@ -676,19 +698,7 @@ int8_t Encoder::Execute(
         
         break;
     }
-    //bit error check
-    #ifdef SW
-    int bus_status = this->stuff_wrote;
-    if(bus_status != this->stuff_wrote && this->state > ARBITRATION_STATE) {
-        this->error_flag = BIT_ERROR_FLAG;
-    }
-    #endif
-    #ifdef ARDUINO
-    int bus_status = digitalRead(this->pin_rx);
-    if(bus_status != digitalRead(this->pin_tx) && this->state > ARBITRATION_STATE) {
-        this->error_flag = BIT_ERROR_FLAG;
-    }
-    #endif
+
 
     end_automata:
     if(this->state == STUFFING_HANDLER)
@@ -754,7 +764,7 @@ int8_t Encoder::ExecuteError(
                 this->ErrorFlaging(NON_ERROR_FLAG);
                 status = 10;
             }
-
+            
         break;
     }
 

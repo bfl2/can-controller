@@ -60,6 +60,7 @@ class Encoder{
         int8_t __writeBit(int8_t bit);
         int8_t WriteBit(int8_t new_bit);
         int8_t NextBitFromBuffer();
+        void BitErrorCheck();
         void AddToWrite(int32_t num, int8_t bits_size);
         void CreateCRCSeed();
 
