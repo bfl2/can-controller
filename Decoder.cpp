@@ -93,9 +93,11 @@ void Decoder::execute(int8_t rx)
             //Init variables
             initInterestBits();
 
-            if (this->rx == 0)
+            if (this->rx == 0){
                 this->next_state = IDA_ST;
                 this->idle = 0;
+            }
+                
         break;
 
         case IDA_ST:
@@ -266,23 +268,44 @@ void Decoder::execute(int8_t rx)
                     data_aux >>= 8;
                 }
 
+                #ifndef ARDUINO
+                printf("data from frame:");
+                #endif
+
                 if(this->ide == 0x0){
                     max_bytes = 3 + this->dlc;
-
                     for(int i=0; i < max_bytes; i++)
                     {
-                        data_aux = ReverseBits(this->standard_payload.b[i]&0xff, 8);
-                        this->computed_crc = CrcNext(this->computed_crc, data_aux);
+                        data_byte = ReverseBits(this->standard_payload.b[i]&0xff, 8);
+                        this->computed_crc = CrcNext(this->computed_crc, data_byte);
+
+                        #ifndef ARDUINO
+                        if(i > 2)
+                            printf(" %02X", data_byte);
+                        #endif
                     }
+
+                    #ifndef ARDUINO
+                    printf("\n");
+                    #endif
                 }
                 else if(this->ide == 0x1){
                     max_bytes = 5 + this->dlc;
                     for(int i=max_bytes; i > 0; i--)
                     {
 
-                        data_aux = ReverseBits(this->extended_payload.b[i]&0xff, 8);
-                        this->computed_crc = CrcNext(this->computed_crc, data_aux);
+                        data_byte = ReverseBits(this->extended_payload.b[i]&0xff, 8);
+                        this->computed_crc = CrcNext(this->computed_crc, data_byte);
+
+                        #ifndef ARDUINO
+                        if(i > 2)
+                            printf(" %02X", data_byte);
+                        #endif
                     }
+
+                    #ifndef ARDUINO
+                    printf("\n");
+                    #endif
                 }
 
                 this->crc_count = 15;
@@ -313,7 +336,7 @@ void Decoder::execute(int8_t rx)
 
         case CRC_DELIM_ST:
             #ifndef ARDUINO
-            printf("CRC DELIM\n");
+            printf("CRC DELIM comparing: 0x%04X - 0x%04X\n", this->crc, this->computed_crc);
             #endif
             this->bit_stuffing_enable = 0;
             this->crc_delim_error = 0;
