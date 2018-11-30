@@ -121,6 +121,7 @@ void BitDeStuffing::execute(int8_t rx, int8_t bit_stuffing_enable, int8_t sample
                 }
                 else{
                     if(this->count == 5){
+                        printf("STUFFED\n");
                         this->count = 1;
                         this->last_rx = rx;
                         this->sample_point_out = 0;

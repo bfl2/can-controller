@@ -19,6 +19,7 @@ class Decoder {
         void displayFrameRead();
         void execute(int8_t rx, int8_t sample_point, int8_t bit_destuffing_error);
         void execute(int8_t rx);
+        void computeCRC();
 
         
         //interest Bits

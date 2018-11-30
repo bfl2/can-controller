@@ -107,19 +107,22 @@ int8_t Encoder::WriteBit(int8_t new_bit){
 }
 
 void Encoder::BitErrorCheck () {
-     #ifdef SW
+    #ifdef SW
     int bus_status = this->stuff_wrote;
-    if(bus_status != this->stuff_wrote && this->state > ARBITRATION_STATE) {
-        this->error_flag = BIT_ERROR_FLAG;
-    }
-    #endif
-    #ifdef ARDUINO
+    #elif ARDUINO
     int bus_status = digitalRead(this->pin_rx);
-    if(bus_status != digitalRead(this->pin_tx) && this->state > ARBITRATION_STATE) {
+    #endif
+ 
+    if((bus_status != this->stuff_wrote) 
+        && (this->state != ARBITRATION_STATE)
+        && (this->state != SRR_STATE)
+        && (this->state != IDE_STATE)
+        && (this->state != RTR_STATE)) 
+    {
         this->error_flag = BIT_ERROR_FLAG;
     }
-    #endif
 }
+ 
 
 int8_t Encoder::NextBitFromBuffer(){
     int8_t bit = (this->write_buffer) & 0x1;

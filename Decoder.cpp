@@ -38,7 +38,7 @@ void Decoder::initInterestBits() {
     this->data_len = 4;
     this->crc_count = 15;
     this->eof_count = 0;
-    this->bit_stuffing_enable = 1;
+    this->bit_stuffing_enable = 0;
     this->bit_destuffing_error = 0;
     this->crc_error = 0;
     this->ack_error = 0;
@@ -71,6 +71,81 @@ void Decoder::execute(int8_t rx, int8_t sample_point, int8_t bit_destuffing_erro
     }
 }
 
+void Decoder::computeCRC(){
+    if(this->dlc > 0){
+        #ifndef ARDUINO
+        printf("frame:");
+        #endif
+    }
+    
+    if(this->ide == 0x0){    //standard
+        this->standard_payload.p.h.BLANK=0;
+        this->standard_payload.p.h.SOF = 0;
+        this->standard_payload.p.h.ID_A = ReverseBits(this->ida, 11);
+        this->standard_payload.p.h.RESERVED = this->reserved;
+        this->standard_payload.p.h.DLC = ReverseBits(this->dlc, 4);
+        this->standard_payload.p.h.IDE = this->ide;
+        this->standard_payload.p.h.RTR = this->rtr;
+    }
+    else if(this->ide == 0x1){ //extendedth
+        this->extended_payload.p.h.BLANK = 0;
+        this->extended_payload.p.h.SOF = 0;
+        this->extended_payload.p.h.ID_A = ReverseBits(this->ida, 11);
+        this->extended_payload.p.h.ID_B = ReverseBits(this->idb, 18);
+        this->extended_payload.p.h.SRR = this->rtr_srr;
+        this->extended_payload.p.h.RESERVED = ReverseBits(this->reserved, 2);
+        this->extended_payload.p.h.DLC = ReverseBits(this->dlc, 4);
+        this->extended_payload.p.h.IDE = this->ide;
+        this->extended_payload.p.h.RTR = this->rtr;
+    }
+
+    if(this->dlc > 8)
+        this->dlc = 8;
+
+    int64_t data_aux = this->data;
+    this->computed_crc = 0;
+    uint16_t data_byte;
+    int8_t max_bytes;
+    int8_t skip;
+
+    for(int i=0; i < this->dlc; i++){
+        data_byte = (data_aux & 0xFF);
+        if(this->ide == 0x0)
+            this->standard_payload.b[3+(this->dlc - i - 1)] = ReverseBits(data_byte, 8);
+        else if(this->ide == 0x1)
+            this->extended_payload.b[5+(this->dlc - i - 1)] = ReverseBits(data_byte, 8);
+        data_aux >>= 8;
+    }
+
+    if(this->ide == 0x0){
+        max_bytes = 3 + this->dlc;
+        for(int i=0; i < max_bytes; i++)
+        {
+            data_byte = ReverseBits(this->standard_payload.b[i]&0xff, 8);
+            this->computed_crc = CrcNext(this->computed_crc, data_byte);
+
+            #ifndef ARDUINO
+            printf(" %02X", data_byte);
+            #endif
+        }
+    }
+    else if(this->ide == 0x1){
+        max_bytes = 5 + this->dlc;
+        for(int i=0; i < max_bytes; i++)
+        {
+            data_byte = ReverseBits(this->extended_payload.b[i]&0xff, 8);
+            this->computed_crc = CrcNext(this->computed_crc, data_byte);
+
+            #ifndef ARDUINO
+            printf(" %02X", data_byte);
+            #endif
+        }
+    }
+    #ifndef ARDUINO
+    printf("\n");
+    #endif
+}
+
 void Decoder::execute(int8_t rx) 
 { 
     this->rx = rx;
@@ -93,6 +168,7 @@ void Decoder::execute(int8_t rx)
             initInterestBits();
 
             if (this->rx == 0){
+                this->bit_stuffing_enable = 1;
                 this->next_state = IDA_ST;
                 this->idle = 0;
             }
@@ -206,10 +282,16 @@ void Decoder::execute(int8_t rx)
             //transitions
             if ((this->rtr == 0) && (this->data_len == 0)) {
                 this->dlc = this->data_count;
+
+                if(this->data_count > 8)
+                    this->data_count = 8;
+                    
                 this->data_count = (this->data_count*8); 
                 this->next_state = DATA_ST;
                 this->data_count_aux = this->data_count;
             } else if ((this->rtr == 1) && (this->data_len == 0)) {
+                this->dlc = 0;
+                this->data_count = 0;
                 this->next_state = CRC_ST;
             }
         break;
@@ -236,81 +318,6 @@ void Decoder::execute(int8_t rx)
 
             //transitions
             if ( this->data_count_aux == 0 ) {
-                if(this->ide == 0x0){    //standard
-                    this->standard_payload.p.h.BLANK=0;
-                    this->standard_payload.p.h.SOF = 0;
-                    this->standard_payload.p.h.ID_A = ReverseBits(this->ida, 11);
-                    this->standard_payload.p.h.RESERVED = this->reserved;
-                    this->standard_payload.p.h.DLC = ReverseBits(this->dlc, 4);
-                    this->standard_payload.p.h.IDE = this->ide;
-                    this->standard_payload.p.h.RTR = this->rtr;
-                }
-                else if(this->ide == 0x1){ //extended
-                    this->extended_payload.p.h.BLANK = 0;
-                    this->extended_payload.p.h.SOF = 0;
-                    this->extended_payload.p.h.ID_A = ReverseBits(this->ida, 11);
-                    this->extended_payload.p.h.ID_B = ReverseBits(this->idb, 18);
-                    this->extended_payload.p.h.SRR = this->rtr_srr;
-                    this->extended_payload.p.h.RESERVED = ReverseBits(this->reserved, 2);
-                    this->extended_payload.p.h.DLC = ReverseBits(this->dlc, 4);
-                    this->extended_payload.p.h.IDE = this->ide;
-                    this->extended_payload.p.h.RTR = this->rtr;
-                }
-
-                int64_t data_aux = this->data;
-                this->computed_crc = 0;
-                uint16_t data_byte;
-                int8_t max_bytes;
-                int8_t skip;
-
-                for(int i=0; i < this->dlc; i++){
-                    data_byte = (data_aux & 0xFF);
-                    if(this->ide == 0x0)
-                        this->standard_payload.b[3+(this->dlc - i - 1)] = ReverseBits(data_byte, 8);
-                    else if(this->ide == 0x1)
-                        this->extended_payload.b[5+(this->dlc - i - 1)] = ReverseBits(data_byte, 8);
-                    data_aux >>= 8;
-                }
-
-                #ifndef ARDUINO
-                printf("data from frame:");
-                #endif
-
-                if(this->ide == 0x0){
-                    max_bytes = 3 + this->dlc;
-                    for(int i=0; i < max_bytes; i++)
-                    {
-                        data_byte = ReverseBits(this->standard_payload.b[i]&0xff, 8);
-                        this->computed_crc = CrcNext(this->computed_crc, data_byte);
-
-                        #ifndef ARDUINO
-                        if(i > 2)
-                            printf(" %02X", data_byte);
-                        #endif
-                    }
-
-                    #ifndef ARDUINO
-                    printf("\n");
-                    #endif
-                }
-                else if(this->ide == 0x1){
-                    max_bytes = 5 + this->dlc;
-                    for(int i=0; i < max_bytes; i++)
-                    {
-                        data_byte = ReverseBits(this->extended_payload.b[i]&0xff, 8);
-                        this->computed_crc = CrcNext(this->computed_crc, data_byte);
-
-                        #ifndef ARDUINO
-                        if(i > 4)
-                            printf(" %02X", data_byte);
-                        #endif
-                    }
-
-                    #ifndef ARDUINO
-                    printf("\n");
-                    #endif
-                }
-
                 this->crc_count = 15;
                 this->crc = 0;
                 this->next_state = CRC_ST;
@@ -327,6 +334,7 @@ void Decoder::execute(int8_t rx)
             this->crc += this->rx;
 
             if (this->crc_count==0) {
+                this->computeCRC();
                 if((this->crc - this->computed_crc) != 0){
                     this->crc_error = 1;
                     this->error_count = 5;
@@ -348,9 +356,7 @@ void Decoder::execute(int8_t rx)
                 this->crc_delim_error = 1;
                 this->error_count = 5;
                 this->next_state = ERROR_FLAG_ST;
-            } else if(this->crc_error == 1){
-                this->next_state = ERROR_FLAG_ST;
-            } else {
+            } else{
                 this->next_state = ACK_SLOT_ST;
             }
 
@@ -371,12 +377,16 @@ void Decoder::execute(int8_t rx)
             printf("ACK DELIM\n");
             #endif
             //transitions
-            if (this->rx == 1) {
-                this->next_state = EOF_ST;
-            } else {
+            if(this->crc_error == 1){
                 this->next_state = ERROR_FLAG_ST;
-                this->error_count = 5;
-                this->ack_error = 1;
+            } else {   
+                if (this->rx == 1) {
+                    this->next_state = EOF_ST;
+                } else {
+                    this->next_state = ERROR_FLAG_ST;
+                    this->error_count = 5;
+                    this->ack_error = 1;
+                }
             }
 
         break;
@@ -430,7 +440,7 @@ void Decoder::execute(int8_t rx)
             }
         break;
 
-        case ERROR_SUPERPOSITION_ST:
+        case ERROR_SUPERPOSITION_ST:    //checando bit a mais no erro
             #ifndef ARDUINO
             printf("ERROR_SUPERPOSITION\n");
             #endif
