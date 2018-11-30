@@ -124,9 +124,11 @@ void Encoder::ErrorFlaging(uint8_t flag){
     if(this->error_flag == ACTIVE_ERROR_FLAG)
         this->next_state = ACTIVE_ERROR_STATE;
     else if(this->error_flag == PASSIVE_ERROR_FLAG)
-        this->next_state = PASSIVE_ERROR_FLAG;
+        this->next_state = PASSIVE_ERROR_STATE;
     else if(this->error_flag == NON_ERROR_FLAG)
         this->next_state = SOF_STATE;
+    else if(this->error_flag == BIT_ERROR_FLAG)
+        this->next_state = ACTIVE_ERROR_STATE;
         
 }
 
@@ -151,7 +153,7 @@ int8_t Encoder::Execute(
             #ifdef SW
             printf("SOF ");
             #endif
-
+            this->error_flag = NON_ERROR_FLAG;
             this->stuffing_control = true;
 
             if(id_a > 0x7FF) //check if greater than 11 bits
@@ -592,7 +594,7 @@ int8_t Encoder::Execute(
                 printf("%d", bus_status);
                 #endif
 
-                if(bus_status != this->stuff_wrote){
+                if(this->error_flag){
                     this->bit_counter = 0;
 
                     this->ErrorFlaging(ACTIVE_ERROR_FLAG);
@@ -674,6 +676,19 @@ int8_t Encoder::Execute(
         
         break;
     }
+    //bit error check
+    #ifdef SW
+    int bus_status = this->stuff_wrote;
+    if(bus_status != this->stuff_wrote && this->state > ARBITRATION_STATE) {
+        this->error_flag = BIT_ERROR_FLAG;
+    }
+    #endif
+    #ifdef ARDUINO
+    int bus_status = digitalRead(this->pin_rx);
+    if(bus_status != digitalRead(this->pin_tx) && this->state > ARBITRATION_STATE) {
+        this->error_flag = BIT_ERROR_FLAG;
+    }
+    #endif
 
     end_automata:
     if(this->state == STUFFING_HANDLER)

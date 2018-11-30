@@ -15,6 +15,7 @@
 #define ACTIVE_ERROR_FLAG 1
 #define PASSIVE_ERROR_FLAG -1
 #define NON_ERROR_FLAG 0
+#define BIT_ERROR_FLAG 2
 
 #define SW
 
