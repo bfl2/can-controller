@@ -20,6 +20,7 @@ class BitDeStuffing {
     void execute(int8_t rx, int8_t bit_stuffing_enable, int8_t sample_point_in);
 
     int8_t error_fixed;
+    int8_t count;
 
    
     private:
@@ -32,8 +33,7 @@ class BitDeStuffing {
     int8_t state;
     int8_t next_state;
     int8_t last_rx;
-    int8_t count = 0;
-    int8_t stuffing_error = 0;
+    int8_t stuffing_error;
 
 };
 

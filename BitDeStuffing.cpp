@@ -80,8 +80,6 @@ void BitDeStuffing::printStatus()
     #else
     // printf("\nenabled:%d RX: %d Sample point: %d stuffing_error: %d  Estado: %d|\n", this->bit_stuffing_enable, this->rx, this->sample_point_out, this->stuffing_error, this->state);
     #endif
-    
-
 }
 
 void BitDeStuffing::execute(int8_t rx, int8_t bit_stuffing_enable, int8_t sample_point_in) 
@@ -93,125 +91,48 @@ void BitDeStuffing::execute(int8_t rx, int8_t bit_stuffing_enable, int8_t sample
 
     switch (this->state) {
         case START_STATE:
-            isStart = true;
-            this->sample_point_out = this->sample_point_in;
-            this->error_fixed = 0;
-            this->count = 0;
-            //STATE TRANSITIONS
-            if (bit_stuffing_enable == 1) {
+            this->stuffing_error = 0;
+            this->sample_point_out = 1;
+
+            if ((bit_stuffing_enable == 1) || (rx == 0)) {
+                this->count = 1;
+                this->last_rx = rx;
                 this->next_state = RESTART_STATE;
             }
-            
-            break;
+        break;
 
         case RESTART_STATE:
+            if(this->bit_stuffing_enable == 0){
+                this->count = 1;
+                this->stuffing_error = 0;
+                this->sample_point_out = 1;
+                this->last_rx = rx;
+            }
+            else{
+                if(this->sample_point_out == 0)
+                    this->sample_point_out = 1;
 
-            this->sample_point_out = this->sample_point_in;
-            this->count = 1;
-            this->stuffing_error = 0;
-            //STATE TRANSITIONS
-            if (this->bit_stuffing_enable == 1) 
-            {
-                if (isStart) 
-                {
+                if(rx == this->last_rx){
                     this->count += 1;
-                    isStart = false;
+                    if(this->count == 6){
+                        this->stuffing_error = 1;
+                        this->next_state = ERROR_STATE;
+                    }
                 }
-
-                if (this->rx == 0) 
-                {
-                    this->next_state = COUNT_0_STATE;
-                }
-                else {
-                    this->next_state = COUNT_1_STATE;
-                }
-            } else {
-                this->next_state = START_STATE;
+                else{
+                    if(this->count == 5){
+                        this->count = 1;
+                        this->last_rx = rx;
+                        this->sample_point_out = 0;
+                        this->next_state = RESTART_STATE;
+                    }
+                    else{
+                        this->last_rx = rx;
+                        this->count = 1;
+                    }
+                }  
             }
-
-            break;
-
-        case COUNT_0_STATE:
-
-            this->sample_point_out = this->sample_point_in;
-            this->count += 1;
-            //STATE TRANSITIONS
-             if (this->bit_stuffing_enable == 1) 
-            {
-                if (this->rx == 1) 
-                {
-                    this->next_state = RESTART_STATE;
-                }
-                else if (this->count == 5) 
-                {
-                    this->next_state = CHECK_ERROR_0_STATE;
-                }   
-            } else {
-                this->next_state = START_STATE;
-            }
-
-            break;
-
-        case COUNT_1_STATE:
-
-            this->sample_point_out = this->sample_point_in;
-            this->count += 1;
-            //STATE TRANSITIONS
-             if (this->bit_stuffing_enable == 1) 
-            {
-                if (this->rx == 0) 
-                {
-                    this->next_state = RESTART_STATE;
-                }
-                else if (this->count == 5) 
-                {
-                    this->next_state = CHECK_ERROR_1_STATE;
-                }   
-            } else {
-                this->next_state = START_STATE;
-            }
-
-            break;
-
-        case CHECK_ERROR_0_STATE:
-            this->count += 1;
-            //STATE TRANSITIONS
-             if (this->bit_stuffing_enable == 1) 
-            {
-                if (this->rx == 0) 
-                {
-                    this->next_state = ERROR_STATE;
-                }
-                else
-                {
-                    this->sample_point_out = 0;
-                    this->next_state = RESTART_STATE;
-                }   
-            } else {
-                this->next_state = START_STATE;
-            }
-
-            break;
-
-        case CHECK_ERROR_1_STATE:
-
-            this->count += 1;
-            //STATE TRANSITIONS
-            if (this->bit_stuffing_enable == 1) 
-            {
-                if (this->rx == 1) 
-                {
-                    this->next_state = ERROR_STATE;
-                }
-                else
-                {
-                    this->sample_point_out = 0;
-                    this->next_state = RESTART_STATE;
-                }   
-            } else {
-                this->next_state = START_STATE;
-            }
-            break;
+        break;
 
         case ERROR_STATE:
             this->stuffing_error = 1;
@@ -220,13 +141,13 @@ void BitDeStuffing::execute(int8_t rx, int8_t bit_stuffing_enable, int8_t sample
                 this->error_fixed = 0;
                 this->next_state = RESTART_STATE;
             }
-                
-           
-            break;
+        break;
     }
     printStatus();
     this->state = this->next_state; //update state
-    this->last_rx = this->rx;
+
+    if(this->error_fixed == 1)
+        this->last_rx = this->rx;
 
 }
 
