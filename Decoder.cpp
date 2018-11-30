@@ -157,6 +157,12 @@ void Decoder::execute(int8_t rx)
         this->next_state = ERROR_FLAG_ST;
     }
 
+    if((this->state == ERROR_FLAG_ST) && (this->rx == 1)){
+        this->error_count = 8;
+        this->next_state = ERROR_DELIMITER_ST;
+    }
+        
+
     this->state = this->next_state;
 
     switch (this->state) {
@@ -285,7 +291,7 @@ void Decoder::execute(int8_t rx)
 
                 if(this->data_count > 8)
                     this->data_count = 8;
-                    
+
                 this->data_count = (this->data_count*8); 
                 this->next_state = DATA_ST;
                 this->data_count_aux = this->data_count;
@@ -354,7 +360,7 @@ void Decoder::execute(int8_t rx)
             //transitions
             if (this->rx == 0) {
                 this->crc_delim_error = 1;
-                this->error_count = 5;
+                this->error_count = 12;
                 this->next_state = ERROR_FLAG_ST;
             } else{
                 this->next_state = ACK_SLOT_ST;
@@ -378,13 +384,14 @@ void Decoder::execute(int8_t rx)
             #endif
             //transitions
             if(this->crc_error == 1){
+                this->error_count = 12;
                 this->next_state = ERROR_FLAG_ST;
             } else {   
                 if (this->rx == 1) {
                     this->next_state = EOF_ST;
                 } else {
                     this->next_state = ERROR_FLAG_ST;
-                    this->error_count = 5;
+                    this->error_count = 12;
                     this->ack_error = 1;
                 }
             }
@@ -435,8 +442,9 @@ void Decoder::execute(int8_t rx)
             #endif
             this->error_count -= 1;
             //transitions
-            if( this->error_count ==0 ) {
-                this->next_state = ERROR_SUPERPOSITION_ST;
+            if(this->error_count == 0) {
+                this->error_count = 8;
+                this->next_state = ERROR_DELIMITER_ST;
             }
         break;
 
@@ -451,10 +459,13 @@ void Decoder::execute(int8_t rx)
 
          case ERROR_DELIMITER_ST:
             #ifndef ARDUINO
-            printf("ERROR_DELIMITER\n");
+            printf("ERROR_DELIMITER %d\n", this->error_count);
             #endif
             this->idle = 1;
-            this->next_state = IDLE_ST;
+            this->error_count -= 1;
+            if(this->error_count == 0){
+                this->next_state = ERROR_DELIMITER_ST;
+            }
         break;
     }
     this->last_rx = rx;
