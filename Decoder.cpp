@@ -159,13 +159,14 @@ void Decoder::execute(int8_t rx)
         && (this->state != ERROR_DELIMITER_ST))
     {
         this->bit_stuffing_enable = 0;
-        this->error_count = 6;
+        this->error_count = 12;
         this->next_state = ERROR_FLAG_ST;
     }
         
     this->state = this->next_state;
 
-    if((this->state == ERROR_SUPERPOSITION_ST) && (this->rx == 1)){
+    if((this->state == ERROR_SUPERPOSITION_ST || this->state == ERROR_FLAG_ST)
+        && (this->rx == 1)){
         this->bit_stuffing_enable = 0;
         this->error_count = 8;
         this->state = ERROR_DELIMITER_ST;
@@ -175,6 +176,13 @@ void Decoder::execute(int8_t rx)
     if((this->state == OVERLOAD_SUPERPOSITION_ST) && (this->rx == 1)){
         this->bit_stuffing_enable = 0;
         this->state = OVERLOAD_DELIMITER_ST;
+    }
+
+    if((this->state == INTERMISSION1_ST) || (this->state == INTERMISSION2_ST) && (this->rx == 0)){
+        this->bit_stuffing_enable = 0;
+        this->data_count = 0;
+        this->state = OVERLOAD_FLAG_ST;
+        this->next_state = OVERLOAD_FLAG_ST;
     }
 
     switch (this->state) {
@@ -455,7 +463,7 @@ void Decoder::execute(int8_t rx)
             #endif
             this->error_count -= 1;
             //transitions
-            if(this->error_count == 0) {
+            if((this->error_count == 0) || (this->rx == 1)) {
                 this->error_count = 8;
                 this->next_state = ERROR_SUPERPOSITION_ST;
             }
@@ -467,6 +475,10 @@ void Decoder::execute(int8_t rx)
             #endif
             if ( this->rx == 1 ) {
                 this->next_state = ERROR_DELIMITER_ST;
+            }
+            else if(this->rx == 0){
+                this->error_count = 12;
+                this->next_state = ERROR_FLAG_ST;
             }
         break;
 
@@ -486,12 +498,17 @@ void Decoder::execute(int8_t rx)
             printf("OVERLOAD_FLAG_ST %d\n", this->data_count);
             #endif
             this->data_count += 1;
-            if(this->data_count == 6){
-                this->data_count = 0;
-
-                this->next_state = OVERLOAD_SUPERPOSITION_ST;
+            if(this->rx == 1){
+                this->error_count = 12;
+                this->next_state = ERROR_FLAG_ST;
             }
+            else if(this->rx == 0){
+                if(this->data_count == 6){
+                    this->data_count = 0;
 
+                    this->next_state = OVERLOAD_SUPERPOSITION_ST;
+                }
+            }
             break;
 
         case OVERLOAD_SUPERPOSITION_ST:

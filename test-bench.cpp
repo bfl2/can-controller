@@ -55,7 +55,7 @@ int main(){
 
     int i = 0;
     while(true){
-        int can_bit = big_frame[i];
+        int can_bit = standard_frame4[i];
         if(can_bit == -1)
             break;
         i++;
@@ -84,6 +84,7 @@ int main(){
                 bde.error_fixed = 1;
                 error_fixed = true;
                 no_errors = true;
+                d.crc_error = 0;
             }
         }
 

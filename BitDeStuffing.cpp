@@ -89,6 +89,12 @@ void BitDeStuffing::execute(int8_t rx, int8_t bit_stuffing_enable, int8_t sample
     this->bit_stuffing_enable = bit_stuffing_enable;
     this->sample_point_in = sample_point_in;
 
+    if(this->error_fixed){
+        this->error_fixed = 0;
+        this->state = START_STATE;
+        this->next_state = START_STATE;
+    }
+
     switch (this->state) {
         case START_STATE:
             this->stuffing_error = 0;
