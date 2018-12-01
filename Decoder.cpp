@@ -21,7 +21,10 @@ enum states  {
     INTERMISSION2_ST,
     ERROR_FLAG_ST,
     ERROR_SUPERPOSITION_ST,
-    ERROR_DELIMITER_ST
+    ERROR_DELIMITER_ST,
+    OVERLOAD_FLAG_ST,
+    OVERLOAD_SUPER_ST,
+    OVERLOAD_DELIM_ST
 };
 
 Decoder::Decoder (){
@@ -98,7 +101,7 @@ void Decoder::computeCRC(){
         this->extended_payload.p.h.IDE = this->ide;
         this->extended_payload.p.h.RTR = this->rtr;
     }
-
+    
     if(this->dlc > 8)
         this->dlc = 8;
 
@@ -467,6 +470,18 @@ void Decoder::execute(int8_t rx)
                 this->next_state = ERROR_DELIMITER_ST;
             }
         break;
+
+        case OVERLOAD_FLAG_ST:
+
+            break;
+
+        case OVERLOAD_SUPER_ST:
+
+            break;
+        
+        case OVERLOAD_DELIM_ST:
+
+            break;
     }
     this->last_rx = rx;
 }
