@@ -23,13 +23,14 @@ enum states  {
     ERROR_SUPERPOSITION_ST,
     ERROR_DELIMITER_ST,
     OVERLOAD_FLAG_ST,
-    OVERLOAD_SUPER_ST,
-    OVERLOAD_DELIM_ST
+    OVERLOAD_SUPERPOSITION_ST,
+    OVERLOAD_DELIMITER_ST
 };
 
 Decoder::Decoder (){
     this->idle = 1;
     this->next_state = IDLE_ST;
+    this->initInterestBits();
 }
 
 void Decoder::initInterestBits() {
@@ -157,16 +158,24 @@ void Decoder::execute(int8_t rx)
         && (this->state != ERROR_SUPERPOSITION_ST) 
         && (this->state != ERROR_DELIMITER_ST))
     {
+        this->bit_stuffing_enable = 0;
+        this->error_count = 6;
         this->next_state = ERROR_FLAG_ST;
     }
+        
+    this->state = this->next_state;
 
-    if((this->state == ERROR_FLAG_ST) && (this->rx == 1)){
+    if((this->state == ERROR_SUPERPOSITION_ST) && (this->rx == 1)){
+        this->bit_stuffing_enable = 0;
         this->error_count = 8;
+        this->state = ERROR_DELIMITER_ST;
         this->next_state = ERROR_DELIMITER_ST;
     }
-        
 
-    this->state = this->next_state;
+    if((this->state == OVERLOAD_SUPERPOSITION_ST) && (this->rx == 1)){
+        this->bit_stuffing_enable = 0;
+        this->state = OVERLOAD_DELIMITER_ST;
+    }
 
     switch (this->state) {
         case IDLE_ST:
@@ -440,14 +449,15 @@ void Decoder::execute(int8_t rx)
 
         case ERROR_FLAG_ST:
             #ifndef ARDUINO
-            printf("ERROR FLAG {ack_error:%d, crc_delim_error:%d, crc_error:%d, stuff_error:%d}\n", 
-                        this->ack_error, this->crc_delim_error, this->crc_error, this->stuff_error);
+            printf("ERROR FLAG %d {ack_error:%d, crc_delim_error:%d, crc_error:%d, stuff_error:%d}\n", 
+                        this->error_count ,this->ack_error, this->crc_delim_error, 
+                        this->crc_error, this->stuff_error);
             #endif
             this->error_count -= 1;
             //transitions
             if(this->error_count == 0) {
                 this->error_count = 8;
-                this->next_state = ERROR_DELIMITER_ST;
+                this->next_state = ERROR_SUPERPOSITION_ST;
             }
         break;
 
@@ -467,20 +477,41 @@ void Decoder::execute(int8_t rx)
             this->idle = 1;
             this->error_count -= 1;
             if(this->error_count == 0){
-                this->next_state = ERROR_DELIMITER_ST;
+                this->next_state = IDLE_ST;
             }
         break;
 
         case OVERLOAD_FLAG_ST:
+            #ifndef ARDUINO
+            printf("OVERLOAD_FLAG_ST %d\n", this->data_count);
+            #endif
+            this->data_count += 1;
+            if(this->data_count == 6){
+                this->data_count = 0;
+
+                this->next_state = OVERLOAD_SUPERPOSITION_ST;
+            }
 
             break;
 
-        case OVERLOAD_SUPER_ST:
+        case OVERLOAD_SUPERPOSITION_ST:
+            #ifndef ARDUINO
+            printf("OVERLOAD_SUPERPOSITION_ST\n");
+            #endif
+            if ( this->rx == 1 ) {
+                this->next_state = OVERLOAD_DELIMITER_ST;
+            }
 
             break;
         
-        case OVERLOAD_DELIM_ST:
-
+        case OVERLOAD_DELIMITER_ST:
+            #ifndef ARDUINO
+            printf("OVERLOAD_DELIMITER\n");
+            #endif
+            this->data_count += 1;
+            if ( this->rx == 1 ) {
+                this->next_state = IDLE_ST;
+            }
             break;
     }
     this->last_rx = rx;
