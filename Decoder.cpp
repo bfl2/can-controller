@@ -178,7 +178,7 @@ void Decoder::execute(int8_t rx)
         this->state = OVERLOAD_DELIMITER_ST;
     }
 
-    if((this->state == INTERMISSION1_ST) || (this->state == INTERMISSION2_ST) && (this->rx == 0)){
+    if(((this->state == INTERMISSION1_ST) || (this->state == INTERMISSION2_ST)) && (this->rx == 0)){
         this->bit_stuffing_enable = 0;
         this->data_count = 0;
         this->state = OVERLOAD_FLAG_ST;
