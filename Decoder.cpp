@@ -317,6 +317,7 @@ void Decoder::execute(int8_t rx)
                 this->data_count_aux = this->data_count;
             } else if ((this->rtr == 1) && (this->data_len == 0)) {
                 this->dlc = 0;
+                this->crc = 0;
                 this->data_count = 0;
                 this->next_state = CRC_ST;
             }
@@ -373,7 +374,7 @@ void Decoder::execute(int8_t rx)
 
         case CRC_DELIM_ST:
             #ifndef ARDUINO
-            printf("CRC DELIM comparing: 0x%04X - 0x%04X\n", this->crc, this->computed_crc);
+            printf("CRC DELIM comparing: 0x%04X(read) - 0x%04X(calc)\n", this->crc, this->computed_crc);
             #endif
             this->bit_stuffing_enable = 0;
             this->crc_delim_error = 0;
