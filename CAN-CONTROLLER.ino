@@ -25,7 +25,7 @@
 #define TSEG2 7
 #define SJW 1
 
-#define TQ  1500000 // in microseconds
+#define TQ  150000 // in microseconds
 
 #define ID_A 13
 #define ID_B 13
@@ -141,7 +141,11 @@ void application(){
 
 void loop() {
 
-    if(!waiting_time_quanta){
+
+    if(!waiting_time_quanta)
+        bit_timing.execute();
+    
+    if((!waiting_time_quanta)&&(bit_timing.sample_point == 1)){
         // if(
         //     ((bde.getStuffingErrorFlag() == 0)
         //     && !d.crc_error)
