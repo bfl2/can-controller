@@ -1,4 +1,9 @@
 #include "BitTiming.h"
+//include arduino for integrated version
+#ifndef ARDUINO
+#include <Arduino.h>
+#define ARDUINO
+#endif
 
 enum states {
     START_STATE,
@@ -153,14 +158,14 @@ void BitTiming::execute(){
 
     //hard reset logic
     if(BitTiming::checkIdle() && this->negedge_rx){
-        Serial.println("hard reset trigger");
+        //Serial.println("hard reset trigger");
         this->hard_reset = 0x1;
     }
     else
         this->hard_reset = 0x0;
     //soft reset logic
     if(!(BitTiming::checkIdle()) && this->negedge_rx){
-        Serial.println("soft reset trigger");
+        //Serial.println("soft reset trigger");
         this->soft_reset = 0x1;
     }
     else
@@ -247,7 +252,7 @@ void BitTiming::execute(){
         }
         break;
     }
-    BitTiming::printStateInfo(debugFlag, pinStatusFlag);
+    //BitTiming::printStateInfo(debugFlag, pinStatusFlag);
     this->state = this->next_state;
     this->previous_rx = this->rx;
 

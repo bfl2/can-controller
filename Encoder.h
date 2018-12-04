@@ -46,7 +46,8 @@ class Encoder{
                 int8_t data_size,
                 int8_t data_frame_flag,
                 int frame_type);
-
+        
+        int writeTestBit(int8_t i);
         int8_t ExecuteError(
             int8_t sample_point, 
             int8_t write_point,
@@ -54,11 +55,14 @@ class Encoder{
 
         void ErrorFlaging(uint8_t flag);
 
+         void executeTest();
+
     private:
 
         int8_t StuffingState();
         int8_t __writeBit(int8_t bit);
         int8_t WriteBit(int8_t new_bit);
+
         int8_t NextBitFromBuffer();
         void BitErrorCheck();
         void AddToWrite(int32_t num, int8_t bits_size);
@@ -68,6 +72,7 @@ class Encoder{
 
         int8_t state;
         int8_t next_state;
+        int8_t bus_status;
 
         //pins
         int8_t pin_tx;

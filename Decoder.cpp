@@ -1,4 +1,10 @@
 #include "Decoder.h"
+#include <Arduino.h>
+//include arduino for integrated version
+#ifndef ARDUINO
+
+#define ARDUINO
+#endif
 
 
 enum states  {
@@ -64,7 +70,22 @@ void Decoder::displayStateInfo() {
 void Decoder::displayFrameRead() {
     #ifdef ARDUINO
     Serial.print("Frame Read: ");
-    Serial.print("");
+    Serial.print(" IDA: ");
+    Serial.print(this->ida,HEX);
+    Serial.print(" IDE ");
+    Serial.print(this->ide);
+    if(this->ide == 1){
+        Serial.print(" IDB: ");
+        Serial.print(this->idb,HEX);
+    }
+    Serial.print(this->ide);
+    Serial.print(" RTR ");
+    Serial.print(this->rtr);
+    Serial.print(" DLC: ");
+    Serial.print(this->dlc,HEX);
+    Serial.print(" CRC: ");
+    Serial.println(this->crc,HEX);
+
     #endif
 }
 
@@ -79,6 +100,8 @@ void Decoder::computeCRC(){
     if(this->dlc > 0){
         #ifndef ARDUINO
         printf("frame:");
+        #else
+        Serial.println("frame:");
         #endif
     }
     
@@ -189,6 +212,8 @@ void Decoder::execute(int8_t rx)
         case IDLE_ST:
             #ifndef ARDUINO
             printf("IDLE\n");
+            #else
+            Serial.println("IDLE");
             #endif
             //Init variables
             initInterestBits();
@@ -204,6 +229,9 @@ void Decoder::execute(int8_t rx)
         case IDA_ST:
             #ifndef ARDUINO
             printf("IDA %d\n", this->count_ida);
+            #else
+            Serial.print("IDA ");
+            Serial.println(this->count_ida);
             #endif
             this->count_ida += 1;
             this->ida <<= 1;
@@ -214,6 +242,9 @@ void Decoder::execute(int8_t rx)
             {
                 #ifndef ARDUINO
                 printf("IDA: 0x%04X\n", this->ida);
+                #else
+                Serial.print("IDA ");
+                Serial.println(this->ida,HEX);
                 #endif
                 this->next_state = RTR_SRR_ST;
             }
@@ -223,6 +254,8 @@ void Decoder::execute(int8_t rx)
         case RTR_SRR_ST:
             #ifndef ARDUINO
             printf("RTR_SRR\n");
+            #else
+            Serial.println("RTR_SRR ");
             #endif
             this->rtr_srr = this->rx;
 
@@ -233,6 +266,8 @@ void Decoder::execute(int8_t rx)
         case IDE_ST:
             #ifndef ARDUINO
             printf("IDE\n");
+            #else
+            Serial.println("IDE ");
             #endif
             this->ide = this->rx;
             this->rtr = this->rtr_srr;
@@ -249,6 +284,9 @@ void Decoder::execute(int8_t rx)
         case EXT_ST:
             #ifndef ARDUINO
             printf("IDB %d\n", this->count_idb);
+            #else
+            Serial.print("IDB ");
+            Serial.println(this->count_idb);
             #endif
             this->count_idb += 1;
             this->idb <<= 1;
@@ -259,6 +297,9 @@ void Decoder::execute(int8_t rx)
             {
                 #ifndef ARDUINO
                 printf("IDB: 0x%05X\n", this->idb);
+                #else
+                Serial.print("IDB: ");
+                Serial.println(this->idb,HEX);
                 #endif
                 this->next_state = RTR_ST;
             }
@@ -268,6 +309,8 @@ void Decoder::execute(int8_t rx)
         case RTR_ST:
             #ifndef ARDUINO
             printf("RTR\n");
+            #else
+            Serial.println("RTR ");
             #endif
 
             this->srr = this->rtr_srr; //frame read previously was srr
@@ -281,6 +324,8 @@ void Decoder::execute(int8_t rx)
         case READ_RESERVED_BITS_ST:
             #ifndef ARDUINO
             printf("RESERVED\n");
+            #else
+            Serial.println("RESERVED ");
             #endif
 
             this->reserved <<= 1;
@@ -301,6 +346,8 @@ void Decoder::execute(int8_t rx)
         case DATA_LEN_ST:
             #ifndef ARDUINO
             printf("DATA_LEN\n");
+            #else
+            Serial.println("DATA_LEN ");
             #endif
             this->data_count <<= 1;
             this->data_count += this->rx;
@@ -326,6 +373,8 @@ void Decoder::execute(int8_t rx)
         case STD_ST:
             #ifndef ARDUINO
             printf("STD\n");
+            #else
+            Serial.println("STD");
             #endif
 
             this->data_count = 0;
@@ -338,6 +387,8 @@ void Decoder::execute(int8_t rx)
         case DATA_ST:
             #ifndef ARDUINO
             printf("DATA %d\n", this->data_count_aux);
+            #else
+            Serial.println("DATA");
             #endif
             this->data_count_aux -= 1;
             this->data <<= 1;
@@ -355,6 +406,9 @@ void Decoder::execute(int8_t rx)
         case CRC_ST:
             #ifndef ARDUINO
             printf("CRC %d\n", 15-crc_count);
+            #else
+            Serial.print("CRC ");
+            Serial.println(15-crc_count);
             #endif
             this->crc_count -= 1;
             this->crc <<= 1;
@@ -375,6 +429,12 @@ void Decoder::execute(int8_t rx)
         case CRC_DELIM_ST:
             #ifndef ARDUINO
             printf("CRC DELIM comparing: 0x%04X(read) - 0x%04X(calc)\n", this->crc, this->computed_crc);
+            #else
+            Serial.print("CRC DELIM comparing:  ");
+            Serial.print(this->crc, HEX);
+            Serial.print("(read) - ");
+            Serial.print(this->computed_crc, HEX);
+            Serial.println("(calc)");
             #endif
             this->bit_stuffing_enable = 0;
             this->crc_delim_error = 0;
@@ -392,6 +452,8 @@ void Decoder::execute(int8_t rx)
         case ACK_SLOT_ST:
             #ifndef ARDUINO
             printf("ACK SLOT\n");
+            #else
+            Serial.println("ACK SLOT");
             #endif
             this->ack = this->rx;
             //transitions
@@ -402,6 +464,8 @@ void Decoder::execute(int8_t rx)
         case ACK_DELIM_ST:
             #ifndef ARDUINO
             printf("ACK DELIM\n");
+            #else
+            Serial.println("ACK DELIM");
             #endif
             //transitions
             if(this->crc_error == 1){
@@ -422,6 +486,9 @@ void Decoder::execute(int8_t rx)
         case EOF_ST:
             #ifndef ARDUINO
             printf("EOF %d \n", this->eof_count);
+            #else
+            Serial.print("EOF ");
+            Serial.println(this->eof_count);
             #endif
             this->eof_count += 1;
             displayFrameRead();
@@ -436,6 +503,8 @@ void Decoder::execute(int8_t rx)
         case INTERMISSION1_ST:
             #ifndef ARDUINO
             printf("INTERMISSION1\n");
+            #else
+            Serial.println("INTERMISSION1 ");
             #endif
 
             //transitions
@@ -448,6 +517,8 @@ void Decoder::execute(int8_t rx)
         case INTERMISSION2_ST:
             #ifndef ARDUINO
             printf("INTERMISSION2\n");
+            #else
+            Serial.println("INTERMISSION2 ");
             #endif
             //transitions
             if (this->rx == 1) {
@@ -461,6 +532,18 @@ void Decoder::execute(int8_t rx)
             printf("ERROR FLAG %d {ack_error:%d, crc_delim_error:%d, crc_error:%d, stuff_error:%d}\n", 
                         this->error_count ,this->ack_error, this->crc_delim_error, 
                         this->crc_error, this->stuff_error);
+             #else
+            Serial.print("ERROR FLAG ");
+            Serial.print(this->error_count);
+            Serial.print("{ack_error:");
+            Serial.print(this->ack_error);
+            Serial.print("|crc_delim_error:");
+            Serial.print(this->crc_delim_error);
+            Serial.print("|crc_error:");
+            Serial.print(this->crc_error);
+            Serial.print("|stuff_error:");
+            Serial.print(this->stuff_error);
+            Serial.println("}");
             #endif
             this->error_count -= 1;
             //transitions
@@ -473,6 +556,8 @@ void Decoder::execute(int8_t rx)
         case ERROR_SUPERPOSITION_ST:    //checando bit a mais no erro
             #ifndef ARDUINO
             printf("ERROR_SUPERPOSITION\n");
+            #else
+            Serial.println("ERROR_SUPERPOSITION ");
             #endif
             if ( this->rx == 1 ) {
                 this->next_state = ERROR_DELIMITER_ST;
@@ -486,6 +571,9 @@ void Decoder::execute(int8_t rx)
          case ERROR_DELIMITER_ST:
             #ifndef ARDUINO
             printf("ERROR_DELIMITER %d\n", this->error_count);
+            #else
+            Serial.print("ERROR_DELIMITER ");
+            Serial.println(this->error_count);
             #endif
             this->idle = 1;
             this->error_count -= 1;
@@ -496,7 +584,10 @@ void Decoder::execute(int8_t rx)
 
         case OVERLOAD_FLAG_ST:
             #ifndef ARDUINO
-            printf("OVERLOAD_FLAG_ST %d\n", this->data_count);
+            printf("OVERLOAD_FLAG %d\n", this->data_count);
+            #else
+            Serial.print("OVERLOAD_FLAG  ");
+            Serial.println(this->data_count);
             #endif
             this->data_count += 1;
             if(this->rx == 1){
@@ -514,7 +605,9 @@ void Decoder::execute(int8_t rx)
 
         case OVERLOAD_SUPERPOSITION_ST:
             #ifndef ARDUINO
-            printf("OVERLOAD_SUPERPOSITION_ST\n");
+            printf("OVERLOAD_SUPERPOSITION\n");
+            #else
+            Serial.println("OVERLOAD_SUPERPOSITION ");
             #endif
             if ( this->rx == 1 ) {
                 this->next_state = OVERLOAD_DELIMITER_ST;
@@ -525,6 +618,8 @@ void Decoder::execute(int8_t rx)
         case OVERLOAD_DELIMITER_ST:
             #ifndef ARDUINO
             printf("OVERLOAD_DELIMITER\n");
+            #else
+            Serial.println("OVERLOAD_DELIMITER ");
             #endif
             this->data_count += 1;
             if ( this->rx == 1 ) {

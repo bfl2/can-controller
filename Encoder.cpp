@@ -1,4 +1,10 @@
 #include "Encoder.h"
+#include <Arduino.h>
+//include arduino for integrated version
+#ifndef ARDUINO
+
+#define ARDUINO
+#endif
 
 enum states {
     SOF_STATE,
@@ -46,11 +52,13 @@ int8_t Encoder::__writeBit(int8_t bit){
     #ifdef ARDUINO
     if(bit == 1){
         digitalWrite(this->pin_tx, ONE);
+        Serial.println("W1");
         return ONE;
     }
         
     else if(bit == 0){
         digitalWrite(this->pin_tx, ZERO);
+        Serial.println("W0");
         return ZERO;
     }
     #endif
@@ -107,13 +115,15 @@ int8_t Encoder::WriteBit(int8_t new_bit){
 }
 
 void Encoder::BitErrorCheck () {
-    #ifdef SW
-    int bus_status = this->stuff_wrote;
-    #elif ARDUINO
-    int bus_status = digitalRead(this->pin_rx);
+    
+    
+    #ifdef ARDUINO
+    this->bus_status = digitalRead(this->pin_rx);
+    #else
+    this->bus_status = this->stuff_wrote;
     #endif
  
-    if((bus_status != this->stuff_wrote) 
+    if((this->bus_status != this->stuff_wrote) 
         && (this->state != ARBITRATION_STATE)
         && (this->state != SRR_STATE)
         && (this->state != IDE_STATE)
@@ -149,6 +159,34 @@ void Encoder::ErrorFlaging(uint8_t flag){
         this->next_state = ACTIVE_ERROR_STATE;
         
 }
+ 
+ int Encoder::writeTestBit(int8_t i){
+
+    int standard_frame[] = {0,1,1,0,0,1,1,1,0,0,1,0,0,0,0,0,1,0,0,1,1,0,1,0,1,0,1,0,1,1,0,0,1,1,1,0,0,0,0,1,0,1,0,1,0,1,1,1,1,1,1,1,1,-1}; 
+    int standard_frame2[] = {0,1,1,0,0,1,1,1,0,0,1,0,0,0,0,0,1,1,0,1,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,1,0,0,1,1,1,0,0,1,0,0,1,1,0,1,0,1,1,1,1,1,1,1,1,-1};
+    int standard_frame3[] = {0,1,1,0,0,1,1,1,0,0,1,0,0,0,0,0,1,1,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,0,0,0,1,0,0,1,0,0,1,0,1,1,1,0,1,0,1,1,1,1,1,1,1,1,-1};
+    int standard_frame4[] = {0,1,0,0,0,1,0,0,1,0,0,1,1,1,1,1,0,0,0,0,0,1,0,0,0,0,0,1,1,1,1,1,0,0,1,0,0,0,0,1,0,0,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,1,1,1,0,1,1,1,1,1,0,1,0,1,0,1,1,0,1,1,1,1,1,1,1,1,-1};
+    int remote_frame[] = {0,1,1,0,0,1,1,1,0,0,1,0,1,0,0,0,0,0,1,0,1,0,0,0,0,0,1,1,0,0,0,1,0,0,0,0,1,0,1,1,1,1,1,1,1,1,-1}; //10
+    int remote_frame2[] = {0,1,1,0,0,1,1,1,0,0,1,0,1,0,0,0,0,0,1,1,0,0,0,0,0,1,0,0,0,1,0,1,0,0,0,1,1,0,1,1,1,1,1,1,1,1,-1}; //11
+    int big_idle[] = {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,1,0,0,1,1,1,0,0,1,0,0,0,0,0,1,0,0,1,1,0,1,0,1,0,1,0,1,1,0,0,1,1,1,0,0,0,0,1,0,1,0,1,0,1,1,1,1,1,1,1,1,-1}; 
+    int dlc_too_big[] = {0,0,0,0,0,1,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,0,1,0,1,1,0,0,0,0,1,0,1,1,1,1,1,0,1,1,1,1,1,1,1,1,-1};
+    int dlc_too_big2[] = {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,1,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,0,1,0,1,1,0,0,0,0,1,0,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,1,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,0,1,0,1,1,0,0,0,0,1,0,1,1,1,1,1,0,1,1,1,1,1,1,1,1,-1};
+    int crc_error_frame[] = {0,1,1,0,0,1,1,1,0,0,1,0,0,0,0,1,0,0,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,0,0,0,0,1,0,0,0,0,1,1,1,0,0,0,1,1,0,1,0,0,0,0,0,0,1,1,1,1,1,1,1,1,-1};
+    int stuff_error_frame[] = {0,1,1,0,0,1,1,1,0,0,1,0,0,0,0,1,0,0,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,-1};
+    int big_frame[] = {0,1,0,0,0,1,0,0,1,0,0,1,1,1,1,1,0,0,0,0,0,1,0,0,0,0,0,1,1,1,1,1,0,0,1,0,0,0,0,0,1,0,1,1,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,0,0,0,1,1,1,1,1,0,0,1,0,1,1,1,0,1,0,1,1,1,1,1,1,1,1,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,0,1,0,0,0,1,0,0,1,0,0,1,1,1,1,1,0,0,0,0,0,1,0,0,0,0,0,1,1,1,1,1,0,0,1,0,0,0,0,0,1,0,1,1,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,0,0,0,1,1,1,1,1,0,0,1,0,1,1,1,0,1,0,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,0,1,0,0,0,1,0,0,1,0,0,1,1,1,1,1,0,0,0,0,0,1,0,0,0,0,0,1,1,1,1,1,0,0,1,0,0,0,0,0,1,0,1,1,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,0,0,0,1,1,1,1,1,0,0,1,0,1,1,1,0,1,0,1,1,1,1,1,1,1,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,0,1,0,0,0,1,0,0,1,0,0,1,1,1,1,1,0,0,0,0,0,1,0,0,0,0,0,1,1,1,1,1,0,0,1,0,0,0,0,0,1,0,1,1,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,0,0,0,1,1,1,1,1,0,0,1,0,1,1,1,0,1,0,1,1,1,1,1,1,1,1,-1};
+    int simple_stuff_error[] = {0,0,0,0,0,1,1,1,1,1,1,-1};
+    int8_t bit = stuff_error_frame[i];
+    if(bit!=-1) {
+         digitalWrite(this->pin_tx, bit);
+    }
+   
+    return bit;
+ }
+
+ void Encoder::executeTest() {
+     int8_t data[8] = {1,1,1,1,1,1,1,1};
+     Execute(1,1,16,16,data,1,0,0);
+ }
 
 int8_t Encoder::Execute(
         int8_t sample_point, 
@@ -236,15 +274,15 @@ int8_t Encoder::Execute(
                     #endif
 
                     #ifdef ARDUINO
-                    int bus_status = digitalRead(this->pin_rx);
+                    this->bus_status = digitalRead(this->pin_rx);
                     #endif
 
                     #ifdef SW
-                    int bus_status = this->stuff_wrote;
-                    printf("%d", bus_status);
+                    this->bus_status = this->stuff_wrote;
+                    printf("%d", this->bus_status);
                     #endif
 
-                    if(bus_status != this->stuff_wrote)
+                    if(this->bus_status != this->stuff_wrote)
                         this->next_state = LOST_ARBITRATION_STATE;
                     else{
                         if((this->bit_counter == 12) && (this->frame_type == STANDARD))
@@ -287,17 +325,17 @@ int8_t Encoder::Execute(
                 printf("CHECK ");
                 #endif
                 #ifdef ARDUINO
-                int bus_status = digitalRead(this->pin_rx);
+                this->bus_status = digitalRead(this->pin_rx);
                 #endif
 
                 #ifdef SW
-                int bus_status = this->stuff_wrote;
-                printf("%d", bus_status);
+                this->bus_status = this->stuff_wrote;
+                printf("%d", this->bus_status);
                 #endif
 
                 this->i_wrote = false;
 
-                if(bus_status != this->stuff_wrote)
+                if(this->bus_status != this->stuff_wrote)
                     this->next_state = LOST_ARBITRATION_STATE;
                 else
                     this->next_state = IDE_STATE;
@@ -328,22 +366,20 @@ int8_t Encoder::Execute(
             #endif
 
             if((this->i_wrote) && (sample_point == 1)){
-                #ifdef SW
+                #ifndef ARDUINO
                 printf("CHECK ");
                 #endif
 
                 #ifdef ARDUINO
-                int bus_status = digitalRead(this->pin_rx);
-                #endif
-
-                #ifdef SW
-                int bus_status = this->stuff_wrote;
-                printf("%d", bus_status);
+                this->bus_status = digitalRead(this->pin_rx);
+                #else
+                this->bus_status = this->stuff_wrote;
+                printf("%d", this->bus_status);
                 #endif
 
                 this->i_wrote = false;
 
-                if(bus_status != this->stuff_wrote)
+                if(this->bus_status != this->stuff_wrote)
                     this->next_state = LOST_ARBITRATION_STATE;
                 else{
                     if(this->frame_type == STANDARD){
@@ -395,17 +431,17 @@ int8_t Encoder::Execute(
                     #endif
 
                     #ifdef ARDUINO
-                    int bus_status = digitalRead(this->pin_rx);
+                    this->bus_status = digitalRead(this->pin_rx);
                     #endif
 
                     #ifdef SW
-                    int bus_status = this->stuff_wrote;
-                    printf("%d", bus_status);
+                    this->bus_status = this->stuff_wrote;
+                    printf("%d", this->bus_status);
                     #endif
 
                     this->i_wrote = false;
 
-                    if(bus_status != this->stuff_wrote)
+                    if(this->bus_status != this->stuff_wrote)
                         this->next_state = LOST_ARBITRATION_STATE;
                     else{
                         this->AddToWrite(this->id_b, 18);
@@ -608,12 +644,12 @@ int8_t Encoder::Execute(
                 #endif
 
                 #ifdef ARDUINO
-                int bus_status = digitalRead(this->pin_rx);
+                this->bus_status = digitalRead(this->pin_rx);
                 #endif
 
                 #ifdef SW
-                int bus_status = this->stuff_wrote;
-                printf("%d", bus_status);
+                this->bus_status = this->stuff_wrote;
+                printf("%d", this->bus_status);
                 #endif
 
                 if(this->error_flag){

@@ -1,4 +1,10 @@
 #include "BitDeStuffing.h"
+#include <Arduino.h>
+
+#ifndef ARDUINO
+
+#define ARDUINO
+#endif
 
 enum states {
     START_STATE = 0,
@@ -150,7 +156,7 @@ void BitDeStuffing::execute(int8_t rx, int8_t bit_stuffing_enable, int8_t sample
             }
         break;
     }
-    printStatus();
+    //printStatus();
     this->state = this->next_state; //update state
 
     if(this->error_fixed == 1)
