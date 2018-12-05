@@ -145,7 +145,7 @@ void loop() {
     if(!waiting_time_quanta)
         bit_timing.execute();
     
-    if((!waiting_time_quanta)&&(bit_timing.sample_point == 1)){
+    if((!waiting_time_quanta)&&(bit_timing.write_point == 1)){
         // if(
         //     ((bde.getStuffingErrorFlag() == 0)
         //     && !d.crc_error)
@@ -160,47 +160,7 @@ void loop() {
         }else {
             Serial.println("*Finished writting frame*");
         }
-        delay(10);
-        int8_t can_bit = digitalRead(PIN_RX);
-        Serial.print(can_bit);
-        Serial.print(" ");
-        bde.execute(can_bit, d.bit_stuffing_enable, 1);
-        sample_point = bde.getSamplePoint();
-
-        if(
-            ((bde.getStuffingErrorFlag() == 1)
-            || d.crc_error)
-            && error_fixed)
-        {
-            e.ErrorFlaging(ACTIVE_ERROR_FLAG);
-            error_fixed = false;
-            no_errors = false;
-            if(bde.getStuffingErrorFlag() == 1)
-                d.stuff_error = 1;
-        }
-
-        if(!error_fixed){
-            if(bde.getStuffingErrorFlag() == 1)
-                d.stuff_error = 1;
-
-            status = e.ExecuteError(1, 1, 1);
-            
-            if(status == 10){
-                bde.error_fixed = 1;
-                error_fixed = true;
-                no_errors = true;
-                d.crc_error = 0;
-            }
-        }
-
-        if(sample_point == 1){
-            #ifndef ARDUINO
-            printf("%d ", can_bit);
-            #else
-            //Serial.print(can_bit);
-            #endif
-            d.execute(can_bit);
-        }
+      
 
         waiting_time_quanta = true;
         
