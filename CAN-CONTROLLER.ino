@@ -158,7 +158,7 @@ void loop() {
             digitalWrite(PIN_SYNTH_RX, synth_rx);
             i++;
         }else {
-            Serial.println("*Finished writting frame*");
+            //Serial.println("*Finished writting frame*");
         }
         delay(10);
         int8_t can_bit = digitalRead(PIN_RX);
